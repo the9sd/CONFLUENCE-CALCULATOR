@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Confluence</string>
+    <string name="welcome_title">Confluence Tracker</string>
+    <string name="built_by_srijan">built with ❤️ by srijan</string>
+    <string name="add_setup">Log Confluence Trade</string>
+    <string name="htf_trend">Higher Time Frame (Trend Bias)</string>
+    <string name="ltf_trend">Lower Time Frame (Entry Alignment)</string>
+    <string name="probability">Confluence Probability</string>
+    <string name="save_setup">Save Trading Setup</string>
+    <string name="saved_history">Saved Confluence Logs</string>
+    <string name="delete_all">Clear History</string>
+    <string name="no_history">No trade setups logged yet.</string>
+</resources>

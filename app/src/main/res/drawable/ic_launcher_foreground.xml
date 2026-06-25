@@ -1,0 +1,47 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Outer Confluence Ring (Glowing Gold) -->
+    <path
+        android:pathData="M 54,26 A 28,28 0 1 1 53.99,26 Z"
+        android:strokeWidth="2.5"
+        android:strokeColor="#F59E0B"
+        android:fillColor="#00000000" />
+        
+    <!-- Inner Confluence Ring (Glowing Emerald-Teal) -->
+    <path
+        android:pathData="M 54,34 A 20,20 0 1 1 53.99,34 Z"
+        android:strokeWidth="1.5"
+        android:strokeColor="#10B981"
+        android:fillColor="#1510B981" />
+
+    <!-- Bullish Candle (Green) -->
+    <!-- Wick -->
+    <path
+        android:pathData="M44,36 L44,72"
+        android:strokeWidth="2"
+        android:strokeColor="#34D399" />
+    <!-- Body -->
+    <path
+        android:pathData="M40,44 H48 V64 H40 Z"
+        android:fillColor="#34D399" />
+
+    <!-- Bearish Candle (Red) -->
+    <!-- Wick -->
+    <path
+        android:pathData="M64,36 L64,72"
+        android:strokeWidth="2"
+        android:strokeColor="#F87171" />
+    <!-- Body -->
+    <path
+        android:pathData="M60,48 H68 V68 H60 Z"
+        android:fillColor="#F87171" />
+
+    <!-- Intersection Confluence Sparkle -->
+    <path
+        android:pathData="M54,42 L55,45 L58,46 L55,47 L54,50 L53,47 L50,46 L53,45 Z"
+        android:fillColor="#FFFFFF" />
+</vector>
