@@ -407,7 +407,7 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "STRIXA ANALYZER",
+                                    text = "STRIXA CONFLUENCE",
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Black,
                                     letterSpacing = 1.5.sp,
@@ -422,9 +422,11 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "Calculate STRIXA confluence & trade probability",
+                                    text = "Daar ki Maa ki C***",
                                     fontSize = 11.sp,
-                                    color = TextSecondary
+                                    color = GoldGold,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp
                                 )
                             }
                             IconButton(
@@ -3051,8 +3053,8 @@ fun FloatingBottomNavigation(
             verticalAlignment = Alignment.CenterVertically
         ) {
             val tabs = listOf(
-                Triple("CONFLUENCE", "Confluence", "⚡"),
-                Triple("RISK_LAB", "Risk Lab", "📊")
+                Triple("CONFLUENCE", "STRIXA CONFLUENCE", "⚡"),
+                Triple("RISK_LAB", "STRIXA RISK LAB", "📊")
             )
             tabs.forEach { (tabId, label, emoji) ->
                 val isSelected = selectedTab == tabId
@@ -3176,7 +3178,7 @@ fun RiskLabHomeScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "RISK LAB",
+                            text = "STRIXA RISK LAB",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Black,
                             letterSpacing = 1.5.sp,
@@ -3227,7 +3229,7 @@ fun RiskLabHomeScreen(
 
             Text(
                 text = "CALCULATOR SUITE",
-                fontSize = 14.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = ElectricBlue,
                 letterSpacing = 1.5.sp,
@@ -3257,6 +3259,26 @@ fun RiskLabHomeScreen(
                 highlightColor = BullishGreen,
                 onClick = { onNavigateToCalculator("PROFIT") }
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = buildAnnotatedString {
+                        append("Build with ❤️by ")
+                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = TextPrimary)) {
+                            append("SRIJAN")
+                        }
+                    },
+                    fontSize = 11.sp,
+                    color = TextMuted,
+                    textAlign = TextAlign.Center
+                )
+            }
 
             Spacer(modifier = Modifier.height(120.dp))
         }
@@ -4151,6 +4173,7 @@ fun ProfitCalculatorScreen(
 
     var calculatedResult by remember { mutableStateOf<ProfitResult?>(null) }
     var validationError by remember { mutableStateOf("") }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     Scaffold(
         modifier = Modifier
@@ -4200,7 +4223,8 @@ fun ProfitCalculatorScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(modifier = Modifier.height(12.dp))
@@ -4210,7 +4234,8 @@ fun ProfitCalculatorScreen(
                 onValueChange = { balanceInput = it },
                 label = "Account Balance ($)",
                 placeholder = "e.g., 10000",
-                leadingIcon = "💵"
+                leadingIcon = "💵",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
 
             StrixaInputField(
@@ -4218,7 +4243,8 @@ fun ProfitCalculatorScreen(
                 onValueChange = { riskInput = it },
                 label = "Risk %",
                 placeholder = "e.g., 1.5",
-                leadingIcon = "⚠️"
+                leadingIcon = "⚠️",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
 
             StrixaInputField(
@@ -4226,13 +4252,15 @@ fun ProfitCalculatorScreen(
                 onValueChange = { rrInput = it },
                 label = "Risk : Reward (RR Ratio)",
                 placeholder = "e.g., 3",
-                leadingIcon = "🎯"
+                leadingIcon = "🎯",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(
                 onClick = {
+                    keyboardController?.hide()
                     val bal = balanceInput.toDoubleOrNull()
                     val risk = riskInput.toDoubleOrNull()
                     val rr = rrInput.toDoubleOrNull()
@@ -4360,6 +4388,7 @@ fun ProfitByPipsScreen(
 
     var calculatedResult by remember { mutableStateOf<ProfitByPipsResult?>(null) }
     var validationError by remember { mutableStateOf("") }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     Scaffold(
         modifier = Modifier
@@ -4409,7 +4438,8 @@ fun ProfitByPipsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(modifier = Modifier.height(12.dp))
@@ -4459,7 +4489,8 @@ fun ProfitByPipsScreen(
                 onValueChange = { lotsInput = it },
                 label = "Position Size (Lots)",
                 placeholder = "e.g., 1.5",
-                leadingIcon = "⚖️"
+                leadingIcon = "⚖️",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
 
             StrixaInputField(
@@ -4467,13 +4498,15 @@ fun ProfitByPipsScreen(
                 onValueChange = { pipsInput = it },
                 label = "Number of Pips (or Points)",
                 placeholder = "e.g., 50",
-                leadingIcon = "🎯"
+                leadingIcon = "🎯",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(
                 onClick = {
+                    keyboardController?.hide()
                     val lots = lotsInput.toDoubleOrNull()
                     val pips = pipsInput.toDoubleOrNull()
 
