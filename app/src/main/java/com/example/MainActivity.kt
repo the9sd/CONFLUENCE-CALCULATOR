@@ -271,7 +271,7 @@ fun SplashScreen() {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "v1.0.0",
+                text = "v1.0.0 • Offline Terminal",
                 fontSize = 11.sp,
                 color = TextMuted,
                 letterSpacing = 1.sp
