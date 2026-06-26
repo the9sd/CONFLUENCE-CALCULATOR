@@ -26,6 +26,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
@@ -144,6 +147,7 @@ import com.example.ui.theme.CardSurfaceDb
 import com.example.ui.theme.BorderDb
 import com.example.ui.theme.ElectricBlue
 import com.example.ui.theme.MyApplicationTheme
+import com.example.ui.StrixaLogo
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.theme.TextMuted
@@ -220,62 +224,11 @@ fun SplashScreen() {
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.scale(scale).alpha(alpha)
         ) {
-            Box(
-                contentAlignment = Alignment.Center,
+            // Custom brand logo via reusable StrixaLogo component
+            StrixaLogo(
                 modifier = Modifier
-                    .size(140.dp)
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(ElectricBlue.copy(alpha = 0.2f), Color.Transparent)
-                        )
-                    )
-            ) {
-                // Draw a beautiful confluence geometry on Canvas
-                Canvas(modifier = Modifier.size(100.dp)) {
-                    val radius1 = 45f
-                    val radius2 = 30f
-                    
-                    // Golden Circle
-                    drawCircle(
-                        color = GoldGold,
-                        radius = radius1,
-                        style = Stroke(width = 6f)
-                    )
-                    // Inner Teal Circle
-                    drawCircle(
-                        color = BullishGreen,
-                        radius = radius2,
-                        style = Stroke(width = 4f)
-                    )
-                    
-                    // Abstract candlestick lines
-                    // Bullish candle on left
-                    drawLine(
-                        color = BullishGreen,
-                        start = androidx.compose.ui.geometry.Offset(size.width * 0.4f, size.height * 0.25f),
-                        end = androidx.compose.ui.geometry.Offset(size.width * 0.4f, size.height * 0.75f),
-                        strokeWidth = 4f
-                    )
-                    drawRect(
-                        color = BullishGreen,
-                        topLeft = androidx.compose.ui.geometry.Offset(size.width * 0.33f, size.height * 0.4f),
-                        size = androidx.compose.ui.geometry.Size(size.width * 0.14f, size.height * 0.2f)
-                    )
-
-                    // Bearish candle on right
-                    drawLine(
-                        color = BearishRed,
-                        start = androidx.compose.ui.geometry.Offset(size.width * 0.6f, size.height * 0.25f),
-                        end = androidx.compose.ui.geometry.Offset(size.width * 0.6f, size.height * 0.75f),
-                        strokeWidth = 4f
-                    )
-                    drawRect(
-                        color = BearishRed,
-                        topLeft = androidx.compose.ui.geometry.Offset(size.width * 0.53f, size.height * 0.45f),
-                        size = androidx.compose.ui.geometry.Size(size.width * 0.14f, size.height * 0.2f)
-                    )
-                }
-            }
+                    .size(120.dp)
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -318,7 +271,7 @@ fun SplashScreen() {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "v1.0.0 • Offline Terminal",
+                text = "v1.0.0",
                 fontSize = 11.sp,
                 color = TextMuted,
                 letterSpacing = 1.sp
@@ -349,6 +302,7 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
 
     var showResultsPage by remember { mutableStateOf(false) }
     var isDrawerOpen by remember { mutableStateOf(false) }
+    var isRiskLabCalculatorOpen by remember { mutableStateOf(false) }
 
     var marketStructureExpanded by remember { mutableStateOf(false) }
     var candlesticksExpanded by remember { mutableStateOf(false) }
@@ -611,7 +565,7 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
+                                .bounceClick {
                                     viewModel.updateAoiTouches(if (isAtAoi) 1 else 3)
                                 }
                         ) {
@@ -800,7 +754,7 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
                                     shape = RoundedCornerShape(10.dp),
                                     modifier = Modifier
                                         .weight(1f)
-                                        .clickable { viewModel.updateNewsImpact(value) }
+                                        .bounceClick { viewModel.updateNewsImpact(value) }
                                 ) {
                                     Column(
                                         modifier = Modifier
@@ -839,15 +793,27 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
             // CALCULATE BUTTON
             item {
                 Spacer(modifier = Modifier.height(12.dp))
+                val interactionSource = remember { MutableInteractionSource() }
+                val isPressed by interactionSource.collectIsPressedAsState()
+                val btnScale by animateFloatAsState(
+                    targetValue = if (isPressed) 0.95f else 1f,
+                    animationSpec = spring(stiffness = Spring.StiffnessLow),
+                    label = "btn_press"
+                )
                 Button(
                     onClick = { showResultsPage = true },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = ElectricBlue
                     ),
                     shape = RoundedCornerShape(12.dp),
+                    interactionSource = interactionSource,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(54.dp)
+                        .graphicsLayer {
+                            scaleX = btnScale
+                            scaleY = btnScale
+                        }
                         .testTag("calculate_button")
                 ) {
                     Row(
@@ -896,14 +862,15 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
 
     KeepAliveContainer(visible = selectedTab == "RISK_LAB") {
         RiskLabScreen(
-            onOpenMenu = { isDrawerOpen = true }
+            onOpenMenu = { isDrawerOpen = true },
+            onScreenChanged = { isRiskLabCalculatorOpen = it }
         )
     }
 
     FloatingBottomNavigation(
         selectedTab = selectedTab,
         onTabSelected = { selectedTab = it },
-        visible = if (selectedTab == "CONFLUENCE") isBottomBarVisible else true,
+        visible = if (selectedTab == "CONFLUENCE") isBottomBarVisible else !isRiskLabCalculatorOpen,
         modifier = Modifier
             .align(Alignment.BottomCenter)
             .navigationBarsPadding()
@@ -1010,7 +977,7 @@ fun TimeframeSelectorCard(
                             if (activeState == "BULLISH") BullishGreen else BullishGreen.copy(alpha = 0.4f),
                             CircleShape
                         )
-                        .clickable { onStateChanged("BULLISH") }
+                        .bounceClick { onStateChanged("BULLISH") }
                 )
                 
                 // Neutral Dot Toggle
@@ -1026,7 +993,7 @@ fun TimeframeSelectorCard(
                             if (activeState == "NEUTRAL") TextSecondary else TextMuted,
                             CircleShape
                         )
-                        .clickable { onStateChanged("NEUTRAL") }
+                        .bounceClick { onStateChanged("NEUTRAL") }
                 )
 
                 // Bearish Dot Toggle
@@ -1042,7 +1009,7 @@ fun TimeframeSelectorCard(
                             if (activeState == "BEARISH") BearishRed else BearishRed.copy(alpha = 0.4f),
                             CircleShape
                         )
-                        .clickable { onStateChanged("BEARISH") }
+                        .bounceClick { onStateChanged("BEARISH") }
                 )
             }
         }
@@ -1315,7 +1282,7 @@ fun ConfirmationToggleChip(
             color = if (isChecked) ElectricBlue else BorderDb
         ),
         shape = RoundedCornerShape(8.dp),
-        modifier = modifier.clickable { onToggle() }
+        modifier = modifier.bounceClick { onToggle() }
     ) {
         Row(
             modifier = Modifier
@@ -1344,6 +1311,30 @@ fun ConfirmationToggleChip(
 }
 
 @Composable
+fun Modifier.bounceClick(onClick: () -> Unit = {}): Modifier {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.94f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "bounce"
+    )
+    return this
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
+        .clickable(
+            interactionSource = interactionSource,
+            indication = androidx.compose.foundation.LocalIndication.current,
+            onClick = onClick
+        )
+}
+
+@Composable
 fun MultiSelectDropdown(
     categoryTitle: String,
     options: List<String>,
@@ -1369,7 +1360,7 @@ fun MultiSelectDropdown(
                     .fillMaxWidth()
                     .background(Color.Black.copy(alpha = 0.25f), shape = RoundedCornerShape(10.dp))
                     .border(1.dp, BorderDb, shape = RoundedCornerShape(10.dp))
-                    .clickable { onExpandedChange(!isExpanded) }
+                    .bounceClick { onExpandedChange(!isExpanded) }
                     .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -2457,7 +2448,7 @@ fun MenuRow(
             .fillMaxWidth()
             .background(Color.White.copy(alpha = 0.03f), shape = RoundedCornerShape(12.dp))
             .border(1.dp, BorderDb, shape = RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+            .bounceClick(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -2838,18 +2829,12 @@ fun AboutStrixaAiPage() {
         Spacer(modifier = Modifier.height(8.dp))
         
         // Brand Badge
-        Box(
+        StrixaLogo(
             modifier = Modifier
                 .size(64.dp)
-                .background(ElectricBlue.copy(alpha = 0.1f), shape = RoundedCornerShape(16.dp))
-                .border(1.dp, ElectricBlue.copy(alpha = 0.3f), shape = RoundedCornerShape(16.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "⚡",
-                fontSize = 32.sp
-            )
-        }
+                .clip(RoundedCornerShape(16.dp))
+                .border(1.dp, ElectricBlue.copy(alpha = 0.3f), shape = RoundedCornerShape(16.dp))
+        )
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
@@ -2950,18 +2935,31 @@ fun KeepAliveContainer(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
+    val animatedAlpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+        label = "tab_alpha"
+    )
+    val animatedScale by animateFloatAsState(
+        targetValue = if (visible) 1f else 0.95f,
+        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+        label = "tab_scale"
+    )
     Box(
         modifier = modifier
             .fillMaxSize()
             .then(
-                if (visible) {
+                if (animatedAlpha > 0.01f) {
                     Modifier
                 } else {
-                    Modifier
-                        .absoluteOffset(x = 10000.dp)
-                        .alpha(0f)
+                    Modifier.absoluteOffset(x = 10000.dp)
                 }
             )
+            .graphicsLayer {
+                alpha = animatedAlpha
+                scaleX = animatedScale
+                scaleY = animatedScale
+            }
     ) {
         content()
     }
@@ -3069,17 +3067,25 @@ fun FloatingBottomNavigation(
                     label = "alpha"
                 )
 
+                val tabInteractionSource = remember { MutableInteractionSource() }
+                val isPressed by tabInteractionSource.collectIsPressedAsState()
+                val pressScale by animateFloatAsState(
+                    targetValue = if (isPressed) 0.90f else 1.0f,
+                    animationSpec = spring(stiffness = Spring.StiffnessLow),
+                    label = "tab_press"
+                )
+
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
                         .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
+                            interactionSource = tabInteractionSource,
                             indication = null
                         ) { onTabSelected(tabId) }
                         .graphicsLayer {
-                            scaleX = animatedScale
-                            scaleY = animatedScale
+                            scaleX = animatedScale * pressScale
+                            scaleY = animatedScale * pressScale
                             alpha = animatedAlpha
                         },
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -3106,9 +3112,14 @@ fun FloatingBottomNavigation(
 @Composable
 fun RiskLabScreen(
     onOpenMenu: () -> Unit,
+    onScreenChanged: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var riskLabScreen by remember { mutableStateOf("HOME") }
+
+    LaunchedEffect(riskLabScreen) {
+        onScreenChanged(riskLabScreen != "HOME")
+    }
 
     AnimatedContent(
         targetState = riskLabScreen,
@@ -3296,7 +3307,7 @@ fun CalculatorMenuCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .bounceClick(onClick = onClick)
             .border(width = 1.dp, color = BorderDb, shape = RoundedCornerShape(16.dp)),
         colors = CardDefaults.cardColors(containerColor = CardSurfaceDb),
         shape = RoundedCornerShape(16.dp)
@@ -3520,7 +3531,7 @@ fun SearchableForexDropdown(
                 .fillMaxWidth()
                 .background(Color.Black.copy(alpha = 0.2f), shape = RoundedCornerShape(12.dp))
                 .border(1.dp, BorderDb, shape = RoundedCornerShape(12.dp))
-                .clickable { isExpanded = !isExpanded }
+                .bounceClick { isExpanded = !isExpanded }
                 .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
             Row(
@@ -3816,7 +3827,7 @@ fun PositionSizeCalculatorScreen(
                                     color = if (isSelected) ElectricBlue else Color.Transparent,
                                     shape = RoundedCornerShape(10.dp)
                                 )
-                                .clickable { isRiskPercent = isPercent },
+                                .bounceClick { isRiskPercent = isPercent },
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -3866,7 +3877,7 @@ fun PositionSizeCalculatorScreen(
                                     color = if (isSelected) ElectricBlue else Color.Transparent,
                                     shape = RoundedCornerShape(10.dp)
                                 )
-                                .clickable { isSlInPips = inPips },
+                                .bounceClick { isSlInPips = inPips },
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -3939,6 +3950,14 @@ fun PositionSizeCalculatorScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            val psInteractionSource = remember { MutableInteractionSource() }
+            val isPsPressed by psInteractionSource.collectIsPressedAsState()
+            val psBtnScale by animateFloatAsState(
+                targetValue = if (isPsPressed) 0.95f else 1f,
+                animationSpec = spring(stiffness = Spring.StiffnessLow),
+                label = "btn_press"
+            )
+
             // 6. Calculate Button
             Button(
                 onClick = {
@@ -4000,9 +4019,14 @@ fun PositionSizeCalculatorScreen(
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
                 shape = RoundedCornerShape(12.dp),
+                interactionSource = psInteractionSource,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp)
+                    .graphicsLayer {
+                        scaleX = psBtnScale
+                        scaleY = psBtnScale
+                    }
             ) {
                 Text(
                     text = "CALCULATE POSITION SIZE",
@@ -4258,6 +4282,14 @@ fun ProfitCalculatorScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            val profitInteractionSource = remember { MutableInteractionSource() }
+            val isProfitPressed by profitInteractionSource.collectIsPressedAsState()
+            val profitBtnScale by animateFloatAsState(
+                targetValue = if (isProfitPressed) 0.95f else 1f,
+                animationSpec = spring(stiffness = Spring.StiffnessLow),
+                label = "btn_press"
+            )
+
             Button(
                 onClick = {
                     keyboardController?.hide()
@@ -4278,9 +4310,14 @@ fun ProfitCalculatorScreen(
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
                 shape = RoundedCornerShape(12.dp),
+                interactionSource = profitInteractionSource,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp)
+                    .graphicsLayer {
+                        scaleX = profitBtnScale
+                        scaleY = profitBtnScale
+                    }
             ) {
                 Text(
                     text = "CALCULATE",
@@ -4470,7 +4507,7 @@ fun ProfitByPipsScreen(
                                     color = if (isSelected) ElectricBlue else Color.Transparent,
                                     shape = RoundedCornerShape(10.dp)
                                 )
-                                .clickable { selectedInstrumentType = instType },
+                                .bounceClick { selectedInstrumentType = instType },
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -4504,6 +4541,14 @@ fun ProfitByPipsScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            val pipInteractionSource = remember { MutableInteractionSource() }
+            val isPipPressed by pipInteractionSource.collectIsPressedAsState()
+            val pipBtnScale by animateFloatAsState(
+                targetValue = if (isPipPressed) 0.95f else 1f,
+                animationSpec = spring(stiffness = Spring.StiffnessLow),
+                label = "btn_press"
+            )
+
             Button(
                 onClick = {
                     keyboardController?.hide()
@@ -4523,9 +4568,14 @@ fun ProfitByPipsScreen(
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
                 shape = RoundedCornerShape(12.dp),
+                interactionSource = pipInteractionSource,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp)
+                    .graphicsLayer {
+                        scaleX = pipBtnScale
+                        scaleY = pipBtnScale
+                    }
             ) {
                 Text(
                     text = "CALCULATE",

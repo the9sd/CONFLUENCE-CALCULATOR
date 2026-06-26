@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
+    xmlns:aapt="http://schemas.android.com/apk/res-auto"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
@@ -14,14 +14,14 @@
                 android:endX="108"
                 android:endY="108"
                 android:type="linear">
-                <item android:color="#0F172A" android:offset="0.0" />
-                <item android:color="#1E293B" android:offset="1.0" />
+                <item android:color="#0B061A" android:offset="0.0" />
+                <item android:color="#1A0D36" android:offset="1.0" />
             </gradient>
         </aapt:attr>
     </path>
-    <!-- Subtle technical trading background grid lines -->
+    <!-- Subtle technical branding grid lines in faint purple -->
     <path
         android:pathData="M18,0v108M36,0v108M54,0v108M72,0v108M90,0v108M0,18h108M0,36h108M0,54h108M0,72h108M0,90h108"
         android:strokeWidth="0.4"
-        android:strokeColor="#1EFFFFFF" />
+        android:strokeColor="#1E8B5CF6" />
 </vector>
