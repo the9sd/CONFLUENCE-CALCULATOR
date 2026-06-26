@@ -6,6 +6,17 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.layout.absoluteOffset
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -32,10 +43,13 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -59,10 +73,15 @@ import androidx.compose.material.icons.filled.TrendingFlat
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenu
@@ -71,6 +90,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -92,6 +112,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -112,6 +135,7 @@ import com.example.data.ConfluenceSetup
 import com.example.ui.ConfluenceViewModel
 import com.example.ui.ConfluenceViewModelFactory
 import com.example.ui.LiveConfluenceResult
+import com.example.ui.AiSummaryState
 import com.example.ui.theme.BullishGreen
 import com.example.ui.theme.BearishRed
 import com.example.ui.theme.GoldGold
@@ -256,7 +280,7 @@ fun SplashScreen() {
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "CONFLUENCE",
+                text = "STRIXA",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 6.sp,
@@ -330,18 +354,43 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
     var candlesticksExpanded by remember { mutableStateOf(false) }
     var patternsExpanded by remember { mutableStateOf(false) }
 
+    var selectedTab by remember { mutableStateOf("CONFLUENCE") }
+    val listState = rememberLazyListState()
+    var previousIndex by remember { mutableStateOf(0) }
+    var previousScrollOffset by remember { mutableStateOf(0) }
+    var isBottomBarVisible by remember { mutableStateOf(true) }
+
+    LaunchedEffect(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) {
+        val currentIndex = listState.firstVisibleItemIndex
+        val currentOffset = listState.firstVisibleItemScrollOffset
+        if (currentIndex > previousIndex) {
+            isBottomBarVisible = false
+        } else if (currentIndex < previousIndex) {
+            isBottomBarVisible = true
+        } else {
+            if (currentOffset > previousScrollOffset + 15) {
+                isBottomBarVisible = false
+            } else if (currentOffset < previousScrollOffset - 15) {
+                isBottomBarVisible = true
+            }
+        }
+        previousIndex = currentIndex
+        previousScrollOffset = currentOffset
+    }
+
     if (showResultsPage) {
         ConfluenceResultsPage(
-            result = liveResult,
+            viewModel = viewModel,
             onBack = { showResultsPage = false }
         )
     } else {
         Box(modifier = Modifier.fillMaxSize()) {
-            Scaffold(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(DeepSpaceDb),
-                containerColor = DeepSpaceDb,
+            KeepAliveContainer(visible = selectedTab == "CONFLUENCE") {
+                Scaffold(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(DeepSpaceDb),
+                    containerColor = DeepSpaceDb,
                 topBar = {
                     Column(
                         modifier = Modifier
@@ -358,7 +407,7 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "CONFLUENCE CALCULATOR",
+                                    text = "STRIXA ANALYZER",
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Black,
                                     letterSpacing = 1.5.sp,
@@ -373,7 +422,7 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "Calculate confluence & trade probability",
+                                    text = "Calculate STRIXA confluence & trade probability",
                                     fontSize = 11.sp,
                                     color = TextSecondary
                                 )
@@ -396,6 +445,7 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
                 }
             ) { innerPadding ->
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
@@ -618,40 +668,23 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.Start,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.ShowChart,
-                                    contentDescription = "Confirmations Icon",
-                                    tint = GoldGold,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "ENTRY CONFIRMATIONS",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextPrimary,
-                                    letterSpacing = 0.5.sp
-                                )
-                            }
-                            
-                            // Confirmation Score Badge
-                            Box(
-                                modifier = Modifier
-                                    .background(ElectricBlue.copy(alpha = 0.15f), shape = RoundedCornerShape(6.dp))
-                                    .border(1.dp, ElectricBlue.copy(alpha = 0.5f), shape = RoundedCornerShape(6.dp))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = "Score: ${liveResult.entryConfirmationScore}/100",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ElectricBlue
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.ShowChart,
+                                contentDescription = "Confirmations Icon",
+                                tint = GoldGold,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "ENTRY CONFIRMATIONS",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary,
+                                letterSpacing = 0.5.sp
+                            )
                         }
                         
                         Spacer(modifier = Modifier.height(16.dp))
@@ -671,7 +704,16 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
                         // Category 2: Candlestick Dropdown
                         MultiSelectDropdown(
                             categoryTitle = "Candlestick",
-                            options = listOf("Engulfing", "Pin Bar", "Rejection Candle", "Inside Bar"),
+                            options = listOf(
+                                "Engulfing", 
+                                "Pin Bar", 
+                                "Rejection Candle", 
+                                "Inside Bar", 
+                                "Hammer / Hanging Man", 
+                                "Doji / Morning Star", 
+                                "Harami Pattern", 
+                                "Marubozu"
+                            ),
                             selectedItems = selectedCandlesticks,
                             onToggleItem = { viewModel.toggleCandlestick(it) },
                             isExpanded = candlesticksExpanded,
@@ -683,7 +725,17 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
                         // Category 3: Patterns Dropdown
                         MultiSelectDropdown(
                             categoryTitle = "Patterns",
-                            options = listOf("Double Top", "Double Bottom", "Head & Shoulders", "Inverse Head & Shoulders"),
+                            options = listOf(
+                                "Double Top", 
+                                "Double Bottom", 
+                                "Head & Shoulders", 
+                                "Inverse Head & Shoulders", 
+                                "Flag (Bull/Bear)", 
+                                "Triangle (Sym/Asc/Desc)", 
+                                "Wedge (Falling/Rising)", 
+                                "Cup & Handle", 
+                                "Quasimodo (QM)"
+                            ),
                             selectedItems = selectedPatterns,
                             onToggleItem = { viewModel.togglePattern(it) },
                             isExpanded = patternsExpanded,
@@ -808,7 +860,7 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "CALCULATE CONFLUENCE",
+                            text = "CALCULATE STRIXA CONFLUENCE",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
@@ -838,12 +890,29 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
             }
         }
     }
-        
-        RightSidePanel(
-            isOpen = isDrawerOpen,
-            onClose = { isDrawerOpen = false }
+}
+
+    KeepAliveContainer(visible = selectedTab == "RISK_LAB") {
+        RiskLabScreen(
+            onOpenMenu = { isDrawerOpen = true }
         )
     }
+
+    FloatingBottomNavigation(
+        selectedTab = selectedTab,
+        onTabSelected = { selectedTab = it },
+        visible = if (selectedTab == "CONFLUENCE") isBottomBarVisible else true,
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .navigationBarsPadding()
+            .padding(bottom = 20.dp)
+    )
+
+    RightSidePanel(
+        isOpen = isDrawerOpen,
+        onClose = { isDrawerOpen = false }
+    )
+}
 }
 }
 
@@ -1400,7 +1469,7 @@ fun CalculationResultDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "CONFLUENCE REPORT",
+                        text = "STRIXA REPORT",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = ElectricBlue,
@@ -1466,7 +1535,7 @@ fun CalculationResultDialog(
                             color = TextPrimary
                         )
                         Text(
-                            text = "CONFLUENCE",
+                            text = "STRIXA",
                             fontSize = 10.sp,
                             color = TextSecondary,
                             fontWeight = FontWeight.Bold,
@@ -1673,9 +1742,32 @@ fun CalculationResultDialog(
 
 @Composable
 fun ConfluenceResultsPage(
-    result: LiveConfluenceResult,
+    viewModel: ConfluenceViewModel,
     onBack: () -> Unit
 ) {
+    val result by viewModel.liveResult.collectAsState()
+    val aiSummaryState by viewModel.aiSummaryState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.generateAiSummary(
+            symbol = viewModel.symbol.value,
+            htfBias = result.htfBias,
+            tf1w = viewModel.tf1w.value,
+            tf1d = viewModel.tf1d.value,
+            tf4h = viewModel.tf4h.value,
+            tf1h = viewModel.tf1h.value,
+            tf30m = viewModel.tf30m.value,
+            tf15m = viewModel.tf15m.value,
+            marketStructure = viewModel.selectedMarketStructure.value.joinToString(", "),
+            candlesticks = viewModel.selectedCandlesticks.value.joinToString(", "),
+            patterns = viewModel.selectedPatterns.value.joinToString(", "),
+            newsImpact = viewModel.newsImpact.value,
+            confluenceLevel = result.confluenceLevel,
+            probabilityPercentage = result.probabilityPercentage,
+            entryScore = result.entryConfirmationScore
+        )
+    }
+
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
@@ -1712,7 +1804,7 @@ fun ConfluenceResultsPage(
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Text(
-                    text = "CONFLUENCE REPORT",
+                    text = "STRIXA REPORT",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = ElectricBlue,
@@ -1899,6 +1991,132 @@ fun ConfluenceResultsPage(
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // AI Trade Analysis Card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = CardSurfaceDb),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderDb),
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = "AI Analysis",
+                                tint = GoldGold,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "STRIXA AI SUMMARY",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary,
+                                letterSpacing = 1.sp
+                            )
+                        }
+                        
+                        // Regenerate Button
+                        IconButton(
+                            onClick = {
+                                viewModel.generateAiSummary(
+                                    symbol = viewModel.symbol.value,
+                                    htfBias = result.htfBias,
+                                    tf1w = viewModel.tf1w.value,
+                                    tf1d = viewModel.tf1d.value,
+                                    tf4h = viewModel.tf4h.value,
+                                    tf1h = viewModel.tf1h.value,
+                                    tf30m = viewModel.tf30m.value,
+                                    tf15m = viewModel.tf15m.value,
+                                    marketStructure = viewModel.selectedMarketStructure.value.joinToString(", "),
+                                    candlesticks = viewModel.selectedCandlesticks.value.joinToString(", "),
+                                    patterns = viewModel.selectedPatterns.value.joinToString(", "),
+                                    newsImpact = viewModel.newsImpact.value,
+                                    confluenceLevel = result.confluenceLevel,
+                                    probabilityPercentage = result.probabilityPercentage,
+                                    entryScore = result.entryConfirmationScore
+                                )
+                            },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Regenerate AI analysis",
+                                tint = ElectricBlue,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    when (val state = aiSummaryState) {
+                        is AiSummaryState.Idle -> {
+                            Text(
+                                text = "Preparing STRIXA AI analysis...",
+                                fontSize = 12.sp,
+                                color = TextSecondary
+                            )
+                        }
+                        is AiSummaryState.Loading -> {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                CircularProgressIndicator(
+                                    color = ElectricBlue,
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "STRIXA AI is analyzing market structures and pattern confirmations...",
+                                    fontSize = 11.sp,
+                                    color = TextSecondary,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                        is AiSummaryState.Success -> {
+                            Text(
+                                text = state.summary,
+                                fontSize = 13.sp,
+                                lineHeight = 19.sp,
+                                color = TextPrimary,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        is AiSummaryState.Error -> {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ErrorOutline,
+                                    contentDescription = "Error",
+                                    tint = BearishRed,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = state.message,
+                                    fontSize = 12.sp,
+                                    color = BearishRed,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
             // Explainer Checklist Card
             Card(
                 colors = CardDefaults.cardColors(containerColor = CardSurfaceDb),
@@ -2016,8 +2234,14 @@ fun RightSidePanel(
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var logicExpanded by remember { mutableStateOf(false) }
-    var warningExpanded by remember { mutableStateOf(false) }
+    var currentScreen by remember { mutableStateOf("MENU") }
+
+    // Reset screen to MENU when drawer closes
+    LaunchedEffect(isOpen) {
+        if (!isOpen) {
+            currentScreen = "MENU"
+        }
+    }
 
     AnimatedVisibility(
         visible = isOpen,
@@ -2043,27 +2267,62 @@ fun RightSidePanel(
                     .fillMaxHeight()
                     .fillMaxWidth(0.85f)
                     .background(CardSurfaceDb)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
                     .border(
                         1.dp,
                         BorderDb,
                         shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
                     )
                     .clickable(enabled = false) {}
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState())
+                    .padding(top = 20.dp, bottom = 20.dp, start = 16.dp, end = 16.dp)
             ) {
+                // Pin the Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "INFO PANEL",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = ElectricBlue,
-                        letterSpacing = 1.5.sp
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (currentScreen != "MENU") {
+                            IconButton(
+                                onClick = { currentScreen = "MENU" },
+                                modifier = Modifier
+                                    .padding(end = 8.dp)
+                                    .size(36.dp)
+                                    .background(Color.White.copy(alpha = 0.05f), shape = CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowBack,
+                                    contentDescription = "Back to menu",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        
+                        Text(
+                            text = when (currentScreen) {
+                                "MENU" -> "STRIXA INFO"
+                                "CALCULATION_LOGIC" -> "CALCULATION LOGIC"
+                                "HOW_TO_USE" -> "HOW TO USE"
+                                "DISCLAIMER" -> "DISCLAIMER"
+                                "ABOUT_RISK_LAB" -> "ABOUT RISK LAB"
+                                "ABOUT_STRIXA_AI" -> "ABOUT STRIXA AI"
+                                else -> "INFO PANEL"
+                            },
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = ElectricBlue,
+                            letterSpacing = 1.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    
                     IconButton(
                         onClick = onClose,
                         modifier = Modifier
@@ -2079,128 +2338,2241 @@ fun RightSidePanel(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                // Calculator Logic Expandable Card
-                Column(
+                // Scrollable Body Content with Beautiful Animated Transitions
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.2f), shape = RoundedCornerShape(12.dp))
-                        .border(
-                            1.dp,
-                            if (logicExpanded) ElectricBlue.copy(alpha = 0.5f) else BorderDb,
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        .clickable { logicExpanded = !logicExpanded }
-                        .padding(14.dp)
+                        .weight(1f)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = "Logic Info",
-                                tint = ElectricBlue,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "Calculator Logic",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "Expand Logic",
-                            tint = TextSecondary,
+                    AnimatedContent(
+                        targetState = currentScreen,
+                        transitionSpec = {
+                            if (targetState != "MENU") {
+                                // Transition forward: subpage slides in from the right, menu slides out to the left
+                                (slideInHorizontally(
+                                    initialOffsetX = { it },
+                                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                ) + fadeIn(animationSpec = tween(300))).togetherWith(
+                                    slideOutHorizontally(
+                                        targetOffsetX = { -it / 2 },
+                                        animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                    ) + fadeOut(animationSpec = tween(300))
+                                )
+                            } else {
+                                // Transition backward: menu slides in from the left, subpage slides out to the right
+                                (slideInHorizontally(
+                                    initialOffsetX = { -it / 2 },
+                                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                ) + fadeIn(animationSpec = tween(300))).togetherWith(
+                                    slideOutHorizontally(
+                                        targetOffsetX = { it },
+                                        animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                    ) + fadeOut(animationSpec = tween(300))
+                                )
+                            }
+                        },
+                        label = "DrawerScreenTransitions"
+                    ) { targetScreen ->
+                        Box(
                             modifier = Modifier
-                                .size(20.dp)
-                                .scale(1f, if (logicExpanded) -1f else 1f)
-                        )
-                    }
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            when (targetScreen) {
+                                "MENU" -> {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Text(
+                                            text = "Select a section below to view detailed guides and calculation principles.",
+                                            fontSize = 12.sp,
+                                            color = TextSecondary,
+                                            modifier = Modifier.padding(bottom = 12.dp, start = 4.dp)
+                                        )
 
-                    if (logicExpanded) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "This Confluence Calculator establishes high probability market trade setups by analyzing multiple factors:\n\n" +
-                                    "• Higher Time Frames (HTF):\n" +
-                                    "Assess Daily (D), Weekly (W), and 4-Hour (4H) structures to establish trend bias, liquidity, and AOI zones.\n\n" +
-                                    "• Lower Time Frames (LTF):\n" +
-                                    "Assess 1-Hour (1H), 30-Min (30M), and 15-Min (15M) structures to target precision entry triggers.\n\n" +
-                                    "• Entry Confirmations:\n" +
-                                    "Includes Market Structure shifts (BOS, CHoCH), Candlestick triggers (Engulfing, Pin Bar), and Chart Patterns (Double Top, Double Bottom) which score from 0 to 100 points.",
-                            fontSize = 12.sp,
-                            lineHeight = 18.sp,
-                            color = TextSecondary
-                        )
+                                        MenuRow(
+                                            icon = "🧮",
+                                            title = "Calculation Logic",
+                                            onClick = { currentScreen = "CALCULATION_LOGIC" }
+                                        )
+                                        MenuRow(
+                                            icon = "❓",
+                                            title = "How to Use",
+                                            onClick = { currentScreen = "HOW_TO_USE" }
+                                        )
+                                        MenuRow(
+                                            icon = "⚠️",
+                                            title = "Usage & Disclaimer",
+                                            onClick = { currentScreen = "DISCLAIMER" }
+                                        )
+                                        MenuRow(
+                                            icon = "ℹ️",
+                                            title = "About Risk Lab",
+                                            onClick = { currentScreen = "ABOUT_RISK_LAB" }
+                                        )
+                                        MenuRow(
+                                            icon = "❤️",
+                                            title = "About STRIXA AI",
+                                            onClick = { currentScreen = "ABOUT_STRIXA_AI" }
+                                        )
+                                    }
+                                }
+                                "CALCULATION_LOGIC" -> {
+                                    CalculationLogicPage()
+                                }
+                                "HOW_TO_USE" -> {
+                                    HowToUsePage()
+                                }
+                                "DISCLAIMER" -> {
+                                    UsageDisclaimerPage()
+                                }
+                                "ABOUT_RISK_LAB" -> {
+                                    AboutRiskLabPage()
+                                }
+                                "ABOUT_STRIXA_AI" -> {
+                                    AboutStrixaAiPage()
+                                }
+                            }
+                        }
                     }
                 }
+            }
+        }
+    }
+}
 
-                Spacer(modifier = Modifier.height(14.dp))
+@Composable
+fun MenuRow(
+    icon: String,
+    title: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White.copy(alpha = 0.03f), shape = RoundedCornerShape(12.dp))
+            .border(1.dp, BorderDb, shape = RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = icon,
+                fontSize = 18.sp
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = title,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+        }
+        Text(
+            text = "›",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextSecondary
+        )
+    }
+}
 
-                // Warning Expandable Card
-                Column(
+@Composable
+fun CalculationLogicPage() {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "Learn how each mathematical calculator functions to safeguard your trading decisions.",
+            fontSize = 12.sp,
+            color = TextSecondary,
+            lineHeight = 16.sp,
+            modifier = Modifier.padding(horizontal = 4.dp)
+        )
+
+        // Section 1: Position Size Calculator
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White.copy(alpha = 0.02f), shape = RoundedCornerShape(12.dp))
+                .border(1.dp, BorderDb, shape = RoundedCornerShape(12.dp))
+                .padding(14.dp)
+        ) {
+            Text(
+                text = "📊 Position Size Calculator",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = ElectricBlue
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Determines the appropriate position size based on the selected risk to guarantee capital protection.",
+                fontSize = 12.sp,
+                color = TextSecondary,
+                lineHeight = 18.sp
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Key Inputs & Meaning:",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            val items = listOf(
+                "• Account Balance: Your total trading account equity.",
+                "• Risk %: The percentage of your balance you are willing to lose.",
+                "• Risk Amount: Calculated dollar value based on your Risk %.",
+                "• Entry Price: The price level where you enter the trade.",
+                "• Stop Loss: The price level where you exit to limit losses.",
+                "• Instrument: Forex pairs, commodities, or indices affecting lot calculations."
+            )
+            items.forEach { item ->
+                Text(
+                    text = item,
+                    fontSize = 11.sp,
+                    color = TextSecondary,
+                    lineHeight = 16.sp,
+                    modifier = Modifier.padding(vertical = 2.dp)
+                )
+            }
+        }
+
+        // Section 2: Profit Calculator
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White.copy(alpha = 0.02f), shape = RoundedCornerShape(12.dp))
+                .border(1.dp, BorderDb, shape = RoundedCornerShape(12.dp))
+                .padding(14.dp)
+        ) {
+            Text(
+                text = "💰 Profit Calculator",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = BullishGreen
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Estimates the potential profit and potential loss using the selected Risk-to-Reward (RR) ratio.",
+                fontSize = 12.sp,
+                color = TextSecondary,
+                lineHeight = 18.sp
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Key Inputs:",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            val items = listOf(
+                "• Account Balance: Your total account equity.",
+                "• Risk %: The proportion of account equity to risk on the setup.",
+                "• Risk : Reward (RR): Ratio of potential risk (e.g., 1) to potential reward (e.g., 3)."
+            )
+            items.forEach { item ->
+                Text(
+                    text = item,
+                    fontSize = 11.sp,
+                    color = TextSecondary,
+                    lineHeight = 16.sp,
+                    modifier = Modifier.padding(vertical = 2.dp)
+                )
+            }
+        }
+
+        // Section 3: Profit by Pips
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White.copy(alpha = 0.02f), shape = RoundedCornerShape(12.dp))
+                .border(1.dp, BorderDb, shape = RoundedCornerShape(12.dp))
+                .padding(14.dp)
+        ) {
+            Text(
+                text = "🎯 Profit by Pips",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = GoldGold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Estimates net profit or loss based on the entered number of pips and selected position size.",
+                fontSize = 12.sp,
+                color = TextSecondary,
+                lineHeight = 18.sp
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Key Inputs:",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            val items = listOf(
+                "• Pair / Instrument: The asset pair being traded.",
+                "• Position Size (Lots): The size of your trade in lots.",
+                "• Number of Pips: The total distance in pips of the projected price move."
+            )
+            items.forEach { item ->
+                Text(
+                    text = item,
+                    fontSize = 11.sp,
+                    color = TextSecondary,
+                    lineHeight = 16.sp,
+                    modifier = Modifier.padding(vertical = 2.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun HowToUsePage() {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Text(
+            text = "Follow this recommended workflow to leverage the power of STRIXA AI for consistent trading results:",
+            fontSize = 12.sp,
+            color = TextSecondary,
+            lineHeight = 18.sp,
+            modifier = Modifier.padding(horizontal = 4.dp)
+        )
+
+        val steps = listOf(
+            "1. Open Confluence." to "Navigate to the main analyzer screen of the app.",
+            "2. Complete all Confluence inputs." to "Enter the trend details, select structures, candlesticks, and chart patterns.",
+            "3. Press Analyze." to "Trigger STRIXA AI to evaluate alignment score and generate a probability.",
+            "4. Review the STRIXA analysis." to "Read the synthesized technical brief summary and review TF alignment requirements.",
+            "5. Open Risk Lab." to "Switch over to the calculator suite to calculate the math for execution.",
+            "6. Use the appropriate calculator." to "Select Position Size, Profit, or Pip Calculator for accurate parameters."
+        )
+
+        steps.forEach { (title, desc) ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White.copy(alpha = 0.02f), shape = RoundedCornerShape(10.dp))
+                    .border(1.dp, BorderDb, shape = RoundedCornerShape(10.dp))
+                    .padding(12.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.2f), shape = RoundedCornerShape(12.dp))
-                        .border(
-                            1.dp,
-                            if (warningExpanded) BearishRed.copy(alpha = 0.5f) else BorderDb,
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        .clickable { warningExpanded = !warningExpanded }
-                        .padding(14.dp)
+                        .size(24.dp)
+                        .background(ElectricBlue.copy(alpha = 0.1f), shape = CircleShape)
+                        .border(1.dp, ElectricBlue.copy(alpha = 0.3f), shape = CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = "Usage Warning",
-                                tint = BearishRed,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "Confluence Usage Warning",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "Expand Warning",
-                            tint = TextSecondary,
-                            modifier = Modifier
-                                .size(20.dp)
-                                .scale(1f, if (warningExpanded) -1f else 1f)
-                        )
-                    }
+                    Text(
+                        text = title.substringBefore("."),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ElectricBlue
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title.substringAfter(". ").trim(),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = desc,
+                        fontSize = 11.sp,
+                        color = TextSecondary,
+                        lineHeight = 15.sp
+                    )
+                }
+            }
+        }
+    }
+}
 
-                    if (warningExpanded) {
-                        Spacer(modifier = Modifier.height(10.dp))
+@Composable
+fun UsageDisclaimerPage() {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(BearishRed.copy(alpha = 0.05f), shape = RoundedCornerShape(12.dp))
+                .border(1.dp, BearishRed.copy(alpha = 0.25f), shape = RoundedCornerShape(12.dp))
+                .padding(14.dp)
+        ) {
+            Row(verticalAlignment = Alignment.Top) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = "Warning icon",
+                    tint = BearishRed,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "RISK WARNING & TERMS",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BearishRed,
+                        letterSpacing = 1.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Trading financial markets involves high risk. Read the following usage rules carefully before continuing.",
+                        fontSize = 11.sp,
+                        color = TextSecondary,
+                        lineHeight = 15.sp
+                    )
+                }
+            }
+        }
+
+        val points = listOf(
+            "STRIXA AI is designed to assist with trade planning and risk management.",
+            "STRIXA AI does not provide financial advice or guaranteed trading signals.",
+            "All calculations are estimates.",
+            "Market conditions, spreads, commissions, swaps, and slippage may affect actual trading results.",
+            "Always verify every value before placing a live trade.",
+            "Users are fully responsible for their own trading decisions and results."
+        )
+
+        points.forEach { point ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Text(
+                    text = "•",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ElectricBlue,
+                    modifier = Modifier.width(16.dp)
+                )
+                Text(
+                    text = point,
+                    fontSize = 12.sp,
+                    color = TextSecondary,
+                    lineHeight = 18.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AboutRiskLabPage() {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Text(
+            text = "Risk Lab is a collection of practical calculators designed to help traders calculate position size, estimate profit, and manage risk before entering a trade.",
+            fontSize = 12.sp,
+            color = TextSecondary,
+            lineHeight = 18.sp,
+            modifier = Modifier.padding(horizontal = 4.dp)
+        )
+
+        Text(
+            text = "Risk Lab is intended to improve discipline and consistency as part of the STRIXA workflow.",
+            fontSize = 12.sp,
+            color = TextSecondary,
+            lineHeight = 18.sp,
+            modifier = Modifier.padding(horizontal = 4.dp)
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ElectricBlue.copy(alpha = 0.05f), shape = RoundedCornerShape(12.dp))
+                .border(1.dp, ElectricBlue.copy(alpha = 0.25f), shape = RoundedCornerShape(12.dp))
+                .padding(14.dp)
+        ) {
+            Column {
+                Text(
+                    text = "🏆 DISCIPLINED RISK RULES",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ElectricBlue,
+                    letterSpacing = 0.5.sp
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Consistent traders prioritize risk protection over potential gains. Use Risk Lab on every single setup to lock in proper position sizing and keep portfolio drawdown minimal.",
+                    fontSize = 11.sp,
+                    color = TextSecondary,
+                    lineHeight = 16.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AboutStrixaAiPage() {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        // Brand Badge
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .background(ElectricBlue.copy(alpha = 0.1f), shape = RoundedCornerShape(16.dp))
+                .border(1.dp, ElectricBlue.copy(alpha = 0.3f), shape = RoundedCornerShape(16.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "⚡",
+                fontSize = 32.sp
+            )
+        }
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "STRIXA AI",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Black,
+                color = TextPrimary,
+                letterSpacing = 2.sp
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "Your Personal Trading Intelligence.",
+                fontSize = 11.sp,
+                color = TextSecondary,
+                textAlign = TextAlign.Center
+            )
+        }
+
+        Spacer(modifier = Modifier.fillMaxWidth().height(1.dp).background(BorderDb))
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "STRIXA AI is a personal trading companion focused on:",
+                fontSize = 12.sp,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold
+            )
+
+            val features = listOf(
+                "📈 Market Analysis" to "Multi-timeframe mathematical confluence evaluations backed by artificial intelligence.",
+                "🛡️ Risk Management" to "Strict position sizing and reward estimation tools to minimize capital drawdown."
+            )
+
+            features.forEach { (title, desc) ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = "✓",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BullishGreen,
+                        modifier = Modifier.width(20.dp)
+                    )
+                    Column {
                         Text(
-                            text = "TRADING RISK WARNING:\n\n" +
-                                    "• Financial instruments, foreign exchange (Forex), commodities, and cryptocurrencies carry extreme risks of rapid financial loss.\n\n" +
-                                    "• Confluence percentages represent mathematical probabilities based on historical parameters, not a guarantee of future profits.\n\n" +
-                                    "• Never risk capital that you cannot afford to lose completely.\n\n" +
-                                    "• Use risk management rules such as proper position sizing and stop-loss orders in combination with any confluence setup reports.",
+                            text = title,
                             fontSize = 12.sp,
-                            lineHeight = 18.sp,
-                            color = TextSecondary
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(1.dp))
+                        Text(
+                            text = desc,
+                            fontSize = 11.sp,
+                            color = TextSecondary,
+                            lineHeight = 15.sp
                         )
                     }
                 }
             }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White.copy(alpha = 0.02f), shape = RoundedCornerShape(10.dp))
+                .border(1.dp, BorderDb, shape = RoundedCornerShape(10.dp))
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "Designed & Built with ❤️ by Srijan",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary
+            )
+            Text(
+                text = "Version 1.0.0",
+                fontSize = 10.sp,
+                color = TextMuted
+            )
+        }
+    }
+}
+
+// Brand-New Robust KeepAliveContainer for State Preservation
+@Composable
+fun KeepAliveContainer(
+    visible: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .then(
+                if (visible) {
+                    Modifier
+                } else {
+                    Modifier
+                        .absoluteOffset(x = 10000.dp)
+                        .alpha(0f)
+                }
+            )
+    ) {
+        content()
+    }
+}
+
+// Custom HorizontalDivider to avoid Material 3 Divider import problems
+@Composable
+fun HorizontalDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(BorderDb)
+    )
+}
+
+// Reusable custom input field styled specifically for Strixa theme
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StrixaInputField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    leadingIcon: String? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label, color = TextSecondary, fontSize = 12.sp) },
+        placeholder = { Text(placeholder, color = TextMuted, fontSize = 11.sp) },
+        leadingIcon = leadingIcon?.let {
+            { Text(text = it, fontSize = 15.sp, modifier = Modifier.padding(start = 12.dp)) }
+        },
+        singleLine = true,
+        keyboardOptions = keyboardOptions,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = TextPrimary,
+            unfocusedTextColor = TextPrimary,
+            focusedContainerColor = Color.Black.copy(alpha = 0.2f),
+            unfocusedContainerColor = Color.Black.copy(alpha = 0.2f),
+            disabledContainerColor = Color.Black.copy(alpha = 0.2f),
+            focusedBorderColor = ElectricBlue,
+            unfocusedBorderColor = BorderDb,
+            cursorColor = ElectricBlue
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = modifier.fillMaxWidth()
+    )
+}
+
+// Custom Floating Bottom Navigation Bar matching the dark cosmic theme
+@Composable
+fun FloatingBottomNavigation(
+    selectedTab: String,
+    onTabSelected: (String) -> Unit,
+    visible: Boolean,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = slideInVertically(
+            initialOffsetY = { it },
+            animationSpec = tween(250, easing = FastOutSlowInEasing)
+        ) + fadeIn(animationSpec = tween(250)),
+        exit = slideOutVertically(
+            targetOffsetY = { it },
+            animationSpec = tween(250, easing = FastOutSlowInEasing)
+        ) + fadeOut(animationSpec = tween(250)),
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier
+                .width(280.dp)
+                .height(64.dp)
+                .background(
+                    color = CardSurfaceDb.copy(alpha = 0.94f),
+                    shape = RoundedCornerShape(32.dp)
+                )
+                .border(
+                    width = 1.dp,
+                    color = BorderDb,
+                    shape = RoundedCornerShape(32.dp)
+                )
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val tabs = listOf(
+                Triple("CONFLUENCE", "Confluence", "⚡"),
+                Triple("RISK_LAB", "Risk Lab", "📊")
+            )
+            tabs.forEach { (tabId, label, emoji) ->
+                val isSelected = selectedTab == tabId
+                val animatedScale by animateFloatAsState(
+                    targetValue = if (isSelected) 1.05f else 0.95f,
+                    animationSpec = tween(200),
+                    label = "scale"
+                )
+                val animatedAlpha by animateFloatAsState(
+                    targetValue = if (isSelected) 1.0f else 0.6f,
+                    animationSpec = tween(200),
+                    label = "alpha"
+                )
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { onTabSelected(tabId) }
+                        .graphicsLayer {
+                            scaleX = animatedScale
+                            scaleY = animatedScale
+                            alpha = animatedAlpha
+                        },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = emoji,
+                        fontSize = 20.sp
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = label,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) ElectricBlue else TextSecondary
+                    )
+                }
+            }
+        }
+    }
+}
+
+// Risk Lab Main Switcher Screen
+@Composable
+fun RiskLabScreen(
+    onOpenMenu: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var riskLabScreen by remember { mutableStateOf("HOME") }
+
+    AnimatedContent(
+        targetState = riskLabScreen,
+        transitionSpec = {
+            if (targetState != "HOME") {
+                (slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(250)) + fadeIn()).togetherWith(
+                    slideOutHorizontally(targetOffsetX = { -it / 2 }, animationSpec = tween(250)) + fadeOut()
+                )
+            } else {
+                (slideInHorizontally(initialOffsetX = { -it / 2 }, animationSpec = tween(250)) + fadeIn()).togetherWith(
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(250)) + fadeOut()
+                )
+            }
+        },
+        label = "RiskLabTransitions"
+    ) { screenState ->
+        when (screenState) {
+            "HOME" -> {
+                RiskLabHomeScreen(
+                    onOpenMenu = onOpenMenu,
+                    onNavigateToCalculator = { riskLabScreen = it }
+                )
+            }
+            "POSITION_SIZE" -> {
+                PositionSizeCalculatorScreen(
+                    onBack = { riskLabScreen = "HOME" }
+                )
+            }
+            "PROFIT" -> {
+                ProfitCalculatorScreen(
+                    onBack = { riskLabScreen = "HOME" }
+                )
+            }
+            "PROFIT_BY_PIPS" -> {
+                ProfitByPipsScreen(
+                    onBack = { riskLabScreen = "HOME" }
+                )
+            }
+        }
+    }
+}
+
+// Risk Lab Home Menu
+@Composable
+fun RiskLabHomeScreen(
+    onOpenMenu: () -> Unit,
+    onNavigateToCalculator: (String) -> Unit
+) {
+    Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DeepSpaceDb),
+        containerColor = DeepSpaceDb,
+        topBar = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(CardSurfaceDb)
+                    .border(width = 1.dp, color = BorderDb)
+                    .statusBarsPadding()
+                    .padding(top = 12.dp, bottom = 12.dp, start = 16.dp, end = 16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "RISK LAB",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.5.sp,
+                            color = TextPrimary,
+                            style = TextStyle(
+                                shadow = Shadow(
+                                    color = ElectricBlue.copy(alpha = 0.6f),
+                                    offset = Offset(2f, 2f),
+                                    blurRadius = 8f
+                                )
+                            )
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Risk Se Ishq Karlo",
+                            fontSize = 11.sp,
+                            color = GoldGold,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                    IconButton(
+                        onClick = onOpenMenu,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(Color.White.copy(alpha = 0.05f), shape = CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Menu,
+                            contentDescription = "Menu Panel",
+                            tint = ElectricBlue,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "CALCULATOR SUITE",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = ElectricBlue,
+                letterSpacing = 1.5.sp,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+
+            CalculatorMenuCard(
+                title = "1. Position Size Calculator",
+                description = "Calculate the precise trade size (lots) matching your custom risk tolerance.",
+                emoji = "📊",
+                highlightColor = ElectricBlue,
+                onClick = { onNavigateToCalculator("POSITION_SIZE") }
+            )
+
+            CalculatorMenuCard(
+                title = "2. Profit by Pips",
+                description = "Compute the financial outcomes of projected pip moves for different lot sizes.",
+                emoji = "🎯",
+                highlightColor = GoldGold,
+                onClick = { onNavigateToCalculator("PROFIT_BY_PIPS") }
+            )
+
+            CalculatorMenuCard(
+                title = "3. Profit by Risk to Reward (RR)",
+                description = "Estimate your exact dollar gains and losses based on Risk-to-Reward ratio.",
+                emoji = "💰",
+                highlightColor = BullishGreen,
+                onClick = { onNavigateToCalculator("PROFIT") }
+            )
+
+            Spacer(modifier = Modifier.height(120.dp))
+        }
+    }
+}
+
+@Composable
+fun CalculatorMenuCard(
+    title: String,
+    description: String,
+    emoji: String,
+    highlightColor: Color,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .border(width = 1.dp, color = BorderDb, shape = RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(containerColor = CardSurfaceDb),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .background(highlightColor.copy(alpha = 0.1f), shape = RoundedCornerShape(12.dp))
+                    .border(width = 1.dp, color = highlightColor.copy(alpha = 0.3f), shape = RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = emoji,
+                    fontSize = 26.sp
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = description,
+                    fontSize = 11.sp,
+                    color = TextSecondary,
+                    lineHeight = 15.sp
+                )
+            }
+            Text(
+                text = "›",
+                fontSize = 24.sp,
+                color = TextSecondary.copy(alpha = 0.6f),
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+// Calculation Data Holder
+data class PositionSizeResult(
+    val riskAmount: Double,
+    val pips: Double,
+    val lots: Double,
+    val error: String
+)
+
+data class ForexPair(
+    val symbol: String,       // e.g. "EUR/USD"
+    val displayName: String,  // e.g. "EUR/USD - Euro / US Dollar"
+    val pipSize: Double,      // e.g. 0.0001
+    val baseValue: Double     // standard multiplier
+)
+
+data class ProfitResult(
+    val riskAmount: Double,
+    val potentialProfit: Double,
+    val potentialLoss: Double
+)
+
+data class ProfitByPipsResult(
+    val pipValue: Double,
+    val estimatedProfitLoss: Double
+)
+
+// Sizing calculation formulas
+fun calculatePositionSize(
+    balance: Double,
+    riskVal: Double,
+    isRiskPercent: Boolean,
+    entryPrice: Double,
+    stopLossPips: Double?,
+    stopLossPrice: Double?,
+    selectedPair: ForexPair
+): PositionSizeResult {
+    val riskAmt = if (isRiskPercent) {
+        balance * (riskVal / 100.0)
+    } else {
+        riskVal
+    }
+
+    val pipSize = selectedPair.pipSize
+
+    val pips = if (stopLossPips != null) {
+        stopLossPips
+    } else if (stopLossPrice != null) {
+        val distance = Math.abs(entryPrice - stopLossPrice)
+        if (distance <= 0.0) {
+            return PositionSizeResult(0.0, 0.0, 0.0, "Entry Price and Stop Loss Price must be different.")
+        }
+        distance / pipSize
+    } else {
+        return PositionSizeResult(0.0, 0.0, 0.0, "Stop Loss input value not detected.")
+    }
+
+    if (pips <= 0.0) {
+        return PositionSizeResult(0.0, 0.0, 0.0, "Calculated Stop Loss distance must be greater than zero.")
+    }
+
+    // Dynamic pip value per Standard Lot (100,000 units) in USD base currency
+    val pipValuePerLot = when (selectedPair.symbol) {
+        "EUR/USD", "GBP/USD", "AUD/USD", "NZD/USD" -> {
+            10.0 // Standard major quote in USD
+        }
+        "USD/JPY", "CAD/JPY", "CHF/JPY", "NZD/JPY", "EUR/JPY", "GBP/JPY", "AUD/JPY" -> {
+            // 1 pip = 0.01 on 100,000 JPY contract = 1,000 JPY
+            // convert to USD: 1,000 / USDJPY_rate
+            if (selectedPair.symbol == "USD/JPY" && entryPrice > 0.0) 1000.0 / entryPrice else 6.45
+        }
+        "USD/CAD", "GBP/CAD", "EUR/CAD", "AUD/CAD" -> {
+            // 1 pip = 0.0001 on 100,000 CAD contract = 10 CAD
+            // convert to USD: 10 / USDCAD_rate
+            if (selectedPair.symbol == "USD/CAD" && entryPrice > 0.0) 10.0 / entryPrice else 7.30
+        }
+        "USD/CHF", "GBP/CHF", "EUR/CHF" -> {
+            // 1 pip = 0.0001 on 100,000 CHF contract = 10 CHF
+            // convert to USD: 10 / USDCHF_rate
+            if (selectedPair.symbol == "USD/CHF" && entryPrice > 0.0) 10.0 / entryPrice else 11.0
+        }
+        "EUR/GBP" -> {
+            // 10 GBP contract * approx 1.27 GBPUSD conversion rate = 12.70 USD
+            12.70
+        }
+        "GBP/AUD", "EUR/AUD" -> {
+            6.70
+        }
+        "USD/SGD" -> {
+            7.40
+        }
+        "AUD/NZD" -> {
+            6.10
+        }
+        "XAU/USD" -> {
+            // Gold contract is 100 oz. 1 pip (0.1) on 100 oz = 10 USD
+            10.0
+        }
+        else -> 10.0
+    }
+
+    val lots = riskAmt / (pips * pipValuePerLot)
+
+    if (lots.isNaN() || lots.isInfinite()) {
+        return PositionSizeResult(riskAmt, pips, 0.0, "Error in calculations. Check input parameters.")
+    }
+
+    return PositionSizeResult(riskAmt, pips, lots, "")
+}
+
+fun calculateProfit(
+    balance: Double,
+    riskPercent: Double,
+    rr: Double
+): ProfitResult {
+    val riskAmount = balance * (riskPercent / 100.0)
+    return ProfitResult(
+        riskAmount = riskAmount,
+        potentialProfit = riskAmount * rr,
+        potentialLoss = riskAmount
+    )
+}
+
+fun calculateProfitByPips(
+    instrumentType: String,
+    lots: Double,
+    pips: Double
+): ProfitByPipsResult {
+    val pipValuePerLot = when (instrumentType) {
+        "CRYPTO_INDICES" -> 1.0
+        else -> 10.0
+    }
+    val pipValue = lots * pipValuePerLot
+    return ProfitByPipsResult(
+        pipValue = pipValue,
+        estimatedProfitLoss = pipValue * pips
+    )
+}
+
+// Searchable Forex Dropdown Composable
+@Composable
+fun SearchableForexDropdown(
+    selectedPair: ForexPair,
+    onPairSelected: (ForexPair) -> Unit,
+    pairs: List<ForexPair>,
+    modifier: Modifier = Modifier
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val filteredPairs = remember(searchQuery) {
+        if (searchQuery.isBlank()) {
+            pairs
+        } else {
+            pairs.filter { 
+                it.symbol.contains(searchQuery, ignoreCase = true) || 
+                it.displayName.contains(searchQuery, ignoreCase = true) 
+            }
+        }
+    }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = "FOREX PAIR",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextSecondary,
+            letterSpacing = 1.sp,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.2f), shape = RoundedCornerShape(12.dp))
+                .border(1.dp, BorderDb, shape = RoundedCornerShape(12.dp))
+                .clickable { isExpanded = !isExpanded }
+                .padding(horizontal = 16.dp, vertical = 14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "💱", fontSize = 16.sp, modifier = Modifier.padding(end = 12.dp))
+                    Column {
+                        Text(
+                            text = selectedPair.symbol,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = selectedPair.displayName.substringAfter(" - "),
+                            fontSize = 10.sp,
+                            color = TextSecondary
+                        )
+                    }
+                }
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = "Dropdown icon",
+                    tint = ElectricBlue,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .scale(1f, if (isExpanded) -1f else 1f)
+                )
+            }
+        }
+
+        DropdownMenu(
+            expanded = isExpanded,
+            onDismissRequest = { 
+                isExpanded = false 
+                searchQuery = ""
+            },
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .heightIn(max = 300.dp)
+                .background(CardSurfaceDb)
+                .border(1.dp, BorderDb, shape = RoundedCornerShape(12.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Search pair...", color = TextSecondary.copy(alpha = 0.6f), fontSize = 12.sp) },
+                singleLine = true,
+                textStyle = TextStyle(color = TextPrimary, fontSize = 13.sp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary,
+                    focusedContainerColor = Color.Black.copy(alpha = 0.3f),
+                    unfocusedContainerColor = Color.Black.copy(alpha = 0.3f),
+                    focusedBorderColor = ElectricBlue,
+                    unfocusedBorderColor = BorderDb,
+                    cursorColor = ElectricBlue
+                ),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp, horizontal = 4.dp),
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            )
+
+            HorizontalDivider()
+
+            if (filteredPairs.isEmpty()) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = "No pairs match your search.",
+                            color = TextSecondary,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    },
+                    onClick = {}
+                )
+            } else {
+                filteredPairs.forEach { pair ->
+                    DropdownMenuItem(
+                        text = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = pair.symbol,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (pair.symbol == selectedPair.symbol) ElectricBlue else TextPrimary
+                                    )
+                                    Text(
+                                        text = pair.displayName.substringAfter(" - "),
+                                        fontSize = 10.sp,
+                                        color = TextSecondary
+                                    )
+                                }
+                                if (pair.symbol == selectedPair.symbol) {
+                                    Text("✓", color = ElectricBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                }
+                            }
+                        },
+                        onClick = {
+                            onPairSelected(pair)
+                            isExpanded = false
+                            searchQuery = ""
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                if (pair.symbol == selectedPair.symbol) Color.White.copy(alpha = 0.05f) else Color.Transparent,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                    )
+                }
+            }
+        }
+    }
+}
+
+// 1. Position Size Calculator Screen (Strix Position)
+@Composable
+fun PositionSizeCalculatorScreen(
+    onBack: () -> Unit
+) {
+    val forexPairs = remember {
+        listOf(
+            ForexPair("EUR/USD", "EUR/USD - Euro / US Dollar", 0.0001, 10.0),
+            ForexPair("GBP/USD", "GBP/USD - Great Britain Pound / US Dollar", 0.0001, 10.0),
+            ForexPair("USD/JPY", "USD/JPY - US Dollar / Japanese Yen", 0.01, 10.0),
+            ForexPair("AUD/USD", "AUD/USD - Australian Dollar / US Dollar", 0.0001, 10.0),
+            ForexPair("USD/CAD", "USD/CAD - US Dollar / Canadian Dollar", 0.0001, 10.0),
+            ForexPair("USD/CHF", "USD/CHF - US Dollar / Swiss Franc", 0.0001, 10.0),
+            ForexPair("NZD/USD", "NZD/USD - New Zealand Dollar / US Dollar", 0.0001, 10.0),
+            ForexPair("EUR/GBP", "EUR/GBP - Euro / Great Britain Pound", 0.0001, 12.70),
+            ForexPair("EUR/JPY", "EUR/JPY - Euro / Japanese Yen", 0.01, 6.45),
+            ForexPair("GBP/JPY", "GBP/JPY - Great Britain Pound / Japanese Yen", 0.01, 6.45),
+            ForexPair("AUD/JPY", "AUD/JPY - Australian Dollar / Japanese Yen", 0.01, 6.45),
+            ForexPair("EUR/CHF", "EUR/CHF - Euro / Swiss Franc", 0.0001, 11.10),
+            ForexPair("GBP/AUD", "GBP/AUD - Great Britain Pound / Australian Dollar", 0.0001, 6.70),
+            ForexPair("EUR/AUD", "EUR/AUD - Euro / Australian Dollar", 0.0001, 6.70),
+            ForexPair("USD/SGD", "USD/SGD - US Dollar / Singapore Dollar", 0.0001, 7.40),
+            ForexPair("GBP/CAD", "GBP/CAD - Great Britain Pound / Canadian Dollar", 0.0001, 7.30),
+            ForexPair("EUR/CAD", "EUR/CAD - Euro / Canadian Dollar", 0.0001, 7.30),
+            ForexPair("AUD/NZD", "AUD/NZD - Australian Dollar / New Zealand Dollar", 0.0001, 6.10),
+            ForexPair("AUD/CAD", "AUD/CAD - Australian Dollar / Canadian Dollar", 0.0001, 7.30),
+            ForexPair("CAD/JPY", "CAD/JPY - Canadian Dollar / Japanese Yen", 0.01, 6.45),
+            ForexPair("CHF/JPY", "CHF/JPY - Swiss Franc / Japanese Yen", 0.01, 6.45),
+            ForexPair("NZD/JPY", "NZD/JPY - New Zealand Dollar / Japanese Yen", 0.01, 6.45),
+            ForexPair("GBP/CHF", "GBP/CHF - Great Britain Pound / Swiss Franc", 0.0001, 11.10),
+            ForexPair("XAU/USD", "GOLD (XAU/USD) - Gold Spot", 0.1, 10.0)
+        )
+    }
+
+    var selectedPair by remember { mutableStateOf(forexPairs[0]) }
+    var balanceInput by remember { mutableStateOf("") }
+    var riskInput by remember { mutableStateOf("") }
+    var isRiskPercent by remember { mutableStateOf(true) }
+
+    // Dual input support: enter Stop Loss in Pips directly, or calculate via Entry/SL prices
+    var isSlInPips by remember { mutableStateOf(true) }
+    var slPipsInput by remember { mutableStateOf("") }
+    var entryInput by remember { mutableStateOf("") }
+    var slPriceInput by remember { mutableStateOf("") }
+
+    var calculatedResult by remember { mutableStateOf<PositionSizeResult?>(null) }
+    var validationError by remember { mutableStateOf("") }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DeepSpaceDb),
+        containerColor = DeepSpaceDb,
+        topBar = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(CardSurfaceDb)
+                    .border(width = 1.dp, color = BorderDb)
+                    .statusBarsPadding()
+                    .padding(top = 12.dp, bottom = 12.dp, start = 16.dp, end = 16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .size(36.dp)
+                            .background(Color.White.copy(alpha = 0.05f), shape = CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = ElectricBlue,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Text(
+                        text = "POSITION SIZE",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.sp,
+                        color = ElectricBlue
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState())
+                .imePadding(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 1. Forex Pair Selector (Searchable)
+            SearchableForexDropdown(
+                selectedPair = selectedPair,
+                onPairSelected = { pair ->
+                    selectedPair = pair
+                    // Prepopulate sensible default entry price for comfort
+                    when (pair.symbol) {
+                        "EUR/USD" -> { entryInput = "1.0850"; slPriceInput = "1.0800"; slPipsInput = "50" }
+                        "GBP/USD" -> { entryInput = "1.2650"; slPriceInput = "1.2600"; slPipsInput = "50" }
+                        "USD/JPY" -> { entryInput = "156.50"; slPriceInput = "156.00"; slPipsInput = "50" }
+                        "AUD/USD" -> { entryInput = "0.6650"; slPriceInput = "0.6600"; slPipsInput = "50" }
+                        "USD/CAD" -> { entryInput = "1.3650"; slPriceInput = "1.3700"; slPipsInput = "50" }
+                        "USD/CHF" -> { entryInput = "0.9050"; slPriceInput = "0.9100"; slPipsInput = "50" }
+                        "NZD/USD" -> { entryInput = "0.6150"; slPriceInput = "0.6100"; slPipsInput = "50" }
+                        "XAU/USD" -> { entryInput = "2350.00"; slPriceInput = "2340.00"; slPipsInput = "100" }
+                    }
+                },
+                pairs = forexPairs
+            )
+
+            // 2. Account Balance
+            StrixaInputField(
+                value = balanceInput,
+                onValueChange = { balanceInput = it },
+                label = "Account Balance ($)",
+                placeholder = "e.g., 10000",
+                leadingIcon = "💵",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+
+            // 3. Risk Configuration
+            Column {
+                Text(
+                    text = "RISK TYPE",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextSecondary,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.2f), shape = RoundedCornerShape(12.dp))
+                        .border(1.dp, BorderDb, shape = RoundedCornerShape(12.dp))
+                        .padding(4.dp)
+                ) {
+                    listOf(true to "Risk %", false to "Risk Amount ($)").forEach { (isPercent, label) ->
+                        val isSelected = isRiskPercent == isPercent
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp)
+                                .background(
+                                    color = if (isSelected) ElectricBlue else Color.Transparent,
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                .clickable { isRiskPercent = isPercent },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) Color.White else TextSecondary
+                            )
+                        }
+                    }
+                }
+            }
+
+            StrixaInputField(
+                value = riskInput,
+                onValueChange = { riskInput = it },
+                label = if (isRiskPercent) "Risk (%)" else "Risk Amount ($)",
+                placeholder = if (isRiskPercent) "e.g., 1" else "e.g., 100",
+                leadingIcon = "⚠️",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+
+            // 4. Stop Loss Mode Toggle
+            Column {
+                Text(
+                    text = "STOP LOSS INPUT MODE",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextSecondary,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.2f), shape = RoundedCornerShape(12.dp))
+                        .border(1.dp, BorderDb, shape = RoundedCornerShape(12.dp))
+                        .padding(4.dp)
+                ) {
+                    listOf(true to "Stop Loss in Pips", false to "Entry & SL Prices").forEach { (inPips, label) ->
+                        val isSelected = isSlInPips == inPips
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp)
+                                .background(
+                                    color = if (isSelected) ElectricBlue else Color.Transparent,
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                .clickable { isSlInPips = inPips },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) Color.White else TextSecondary
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 5. Dynamic Stop Loss Fields
+            if (isSlInPips) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    StrixaInputField(
+                        value = slPipsInput,
+                        onValueChange = { slPipsInput = it },
+                        label = "Stop Loss (Pips)",
+                        placeholder = "e.g., 30",
+                        modifier = Modifier.weight(1f),
+                        leadingIcon = "🎯",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                    StrixaInputField(
+                        value = entryInput,
+                        onValueChange = { entryInput = it },
+                        label = "Entry Price",
+                        placeholder = "Optional (e.g. 1.0850)",
+                        modifier = Modifier.weight(1f),
+                        leadingIcon = "📈",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+                Text(
+                    text = "* Entry price is used to accurately calculate pip conversions for JPY, CAD, CHF & cross pairs.",
+                    fontSize = 10.sp,
+                    color = TextSecondary,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    StrixaInputField(
+                        value = entryInput,
+                        onValueChange = { entryInput = it },
+                        label = "Entry Price",
+                        placeholder = "e.g., 1.0850",
+                        modifier = Modifier.weight(1f),
+                        leadingIcon = "📈",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                    StrixaInputField(
+                        value = slPriceInput,
+                        onValueChange = { slPriceInput = it },
+                        label = "Stop Loss Price",
+                        placeholder = "e.g., 1.0800",
+                        modifier = Modifier.weight(1f),
+                        leadingIcon = "📉",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 6. Calculate Button
+            Button(
+                onClick = {
+                    keyboardController?.hide()
+                    val bal = balanceInput.toDoubleOrNull()
+                    val risk = riskInput.toDoubleOrNull()
+                    val entry = entryInput.toDoubleOrNull() ?: 1.0
+
+                    if (bal == null || risk == null) {
+                        validationError = "Please enter valid Account Balance and Risk values."
+                        calculatedResult = null
+                    } else if (bal <= 0 || risk <= 0) {
+                        validationError = "Balance and Risk values must be greater than zero."
+                        calculatedResult = null
+                    } else {
+                        if (isSlInPips) {
+                            val pipsVal = slPipsInput.toDoubleOrNull()
+                            if (pipsVal == null || pipsVal <= 0) {
+                                validationError = "Please enter a valid Stop Loss distance in Pips."
+                                calculatedResult = null
+                            } else {
+                                validationError = ""
+                                calculatedResult = calculatePositionSize(
+                                    balance = bal,
+                                    riskVal = risk,
+                                    isRiskPercent = isRiskPercent,
+                                    entryPrice = entry,
+                                    stopLossPips = pipsVal,
+                                    stopLossPrice = null,
+                                    selectedPair = selectedPair
+                                )
+                            }
+                        } else {
+                            val slPriceVal = slPriceInput.toDoubleOrNull()
+                            val entryVal = entryInput.toDoubleOrNull()
+                            if (entryVal == null || slPriceVal == null) {
+                                validationError = "Please enter valid Entry Price and Stop Loss Price values."
+                                calculatedResult = null
+                            } else if (entryVal <= 0 || slPriceVal <= 0) {
+                                validationError = "Price values must be greater than zero."
+                                calculatedResult = null
+                            } else if (entryVal == slPriceVal) {
+                                validationError = "Entry Price and Stop Loss Price cannot be equal."
+                                calculatedResult = null
+                            } else {
+                                validationError = ""
+                                calculatedResult = calculatePositionSize(
+                                    balance = bal,
+                                    riskVal = risk,
+                                    isRiskPercent = isRiskPercent,
+                                    entryPrice = entryVal,
+                                    stopLossPips = null,
+                                    stopLossPrice = slPriceVal,
+                                    selectedPair = selectedPair
+                                )
+                            }
+                        }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp)
+            ) {
+                Text(
+                    text = "CALCULATE POSITION SIZE",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    letterSpacing = 1.sp
+                )
+            }
+
+            if (validationError.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(BearishRed.copy(alpha = 0.1f), shape = RoundedCornerShape(12.dp))
+                        .border(1.dp, BearishRed.copy(alpha = 0.3f), shape = RoundedCornerShape(12.dp))
+                        .padding(14.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "⚠️", fontSize = 16.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = validationError, color = BearishRed, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+
+            // 7. Results Display
+            calculatedResult?.let { res ->
+                if (res.error.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(BearishRed.copy(alpha = 0.1f), shape = RoundedCornerShape(12.dp))
+                            .border(1.dp, BearishRed.copy(alpha = 0.3f), shape = RoundedCornerShape(12.dp))
+                            .padding(14.dp)
+                    ) {
+                        Text(text = res.error, color = BearishRed, fontSize = 12.sp)
+                    }
+                } else {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, ElectricBlue.copy(alpha = 0.4f), shape = RoundedCornerShape(16.dp)),
+                        colors = CardDefaults.cardColors(containerColor = CardSurfaceDb),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = "POSITION SIZE CALCULATION SETUP SUCCESSFUL",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ElectricBlue,
+                                letterSpacing = 1.sp
+                            )
+
+                            HorizontalDivider()
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = "Selected Pair:", fontSize = 12.sp, color = TextSecondary)
+                                Text(
+                                    text = selectedPair.symbol,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = "Risk Capital:", fontSize = 12.sp, color = TextSecondary)
+                                Text(
+                                    text = String.format(Locale.US, "$%.2f", res.riskAmount),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = "Stop Loss Distance:", fontSize = 12.sp, color = TextSecondary)
+                                Text(
+                                    text = String.format(Locale.US, "%.1f Pips", res.pips),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = GoldGold
+                                )
+                            }
+
+                            HorizontalDivider()
+
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = "Required Position Size:", fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        text = String.format(Locale.US, "%.3f Standard Lots", res.lots),
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = BullishGreen
+                                    )
+                                }
+
+                                // Equivalence breakdowns
+                                val miniLots = res.lots * 10.0
+                                val microLots = res.lots * 100.0
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(text = "Mini Lots (0.1 Lot size):", fontSize = 11.sp, color = TextSecondary)
+                                    Text(
+                                        text = String.format(Locale.US, "%.2f Mini Lots", miniLots),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = TextPrimary
+                                    )
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(text = "Micro Lots (0.01 Lot size):", fontSize = 11.sp, color = TextSecondary)
+                                    Text(
+                                        text = String.format(Locale.US, "%.1f Micro Lots", microLots),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = TextPrimary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(120.dp))
+        }
+    }
+}
+
+// 2. Profit Calculator Screen
+@Composable
+fun ProfitCalculatorScreen(
+    onBack: () -> Unit
+) {
+    var balanceInput by remember { mutableStateOf("") }
+    var riskInput by remember { mutableStateOf("") }
+    var rrInput by remember { mutableStateOf("3") }
+
+    var calculatedResult by remember { mutableStateOf<ProfitResult?>(null) }
+    var validationError by remember { mutableStateOf("") }
+
+    Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DeepSpaceDb),
+        containerColor = DeepSpaceDb,
+        topBar = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(CardSurfaceDb)
+                    .border(width = 1.dp, color = BorderDb)
+                    .statusBarsPadding()
+                    .padding(top = 12.dp, bottom = 12.dp, start = 16.dp, end = 16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .size(36.dp)
+                            .background(Color.White.copy(alpha = 0.05f), shape = CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = ElectricBlue,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Text(
+                        text = "PROFIT BY RISK TO REWARD (RR)",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.sp,
+                        color = ElectricBlue
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            StrixaInputField(
+                value = balanceInput,
+                onValueChange = { balanceInput = it },
+                label = "Account Balance ($)",
+                placeholder = "e.g., 10000",
+                leadingIcon = "💵"
+            )
+
+            StrixaInputField(
+                value = riskInput,
+                onValueChange = { riskInput = it },
+                label = "Risk %",
+                placeholder = "e.g., 1.5",
+                leadingIcon = "⚠️"
+            )
+
+            StrixaInputField(
+                value = rrInput,
+                onValueChange = { rrInput = it },
+                label = "Risk : Reward (RR Ratio)",
+                placeholder = "e.g., 3",
+                leadingIcon = "🎯"
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    val bal = balanceInput.toDoubleOrNull()
+                    val risk = riskInput.toDoubleOrNull()
+                    val rr = rrInput.toDoubleOrNull()
+
+                    if (bal == null || risk == null || rr == null) {
+                        validationError = "Please fill in all fields with valid numbers."
+                        calculatedResult = null
+                    } else if (bal <= 0 || risk <= 0 || rr <= 0) {
+                        validationError = "Values must be greater than zero."
+                        calculatedResult = null
+                    } else {
+                        validationError = ""
+                        calculatedResult = calculateProfit(bal, risk, rr)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp)
+            ) {
+                Text(
+                    text = "CALCULATE",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    letterSpacing = 1.sp
+                )
+            }
+
+            if (validationError.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(BearishRed.copy(alpha = 0.1f), shape = RoundedCornerShape(12.dp))
+                        .border(1.dp, BearishRed.copy(alpha = 0.3f), shape = RoundedCornerShape(12.dp))
+                        .padding(14.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "⚠️", fontSize = 16.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = validationError, color = BearishRed, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+
+            calculatedResult?.let { res ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, BullishGreen.copy(alpha = 0.4f), shape = RoundedCornerShape(16.dp)),
+                    colors = CardDefaults.cardColors(containerColor = CardSurfaceDb),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "RISK & PROJECTION SUCCESSFUL",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = BullishGreen,
+                            letterSpacing = 1.sp
+                        )
+
+                        HorizontalDivider()
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "Risk Amount:", fontSize = 12.sp, color = TextSecondary)
+                            Text(
+                                text = String.format(Locale.US, "$%.2f", res.riskAmount),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "Potential Loss:", fontSize = 12.sp, color = TextSecondary)
+                            Text(
+                                text = String.format(Locale.US, "-$%.2f", res.potentialLoss),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = BearishRed
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "Potential Profit:", fontSize = 12.sp, color = TextSecondary)
+                            Text(
+                                text = String.format(Locale.US, "+$%.2f", res.potentialProfit),
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Black,
+                                color = BullishGreen
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(120.dp))
+        }
+    }
+}
+
+// 3. Profit by Pips Screen
+@Composable
+fun ProfitByPipsScreen(
+    onBack: () -> Unit
+) {
+    var lotsInput by remember { mutableStateOf("") }
+    var pipsInput by remember { mutableStateOf("") }
+    var selectedInstrumentType by remember { mutableStateOf("FOREX_STANDARD") }
+
+    var calculatedResult by remember { mutableStateOf<ProfitByPipsResult?>(null) }
+    var validationError by remember { mutableStateOf("") }
+
+    Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DeepSpaceDb),
+        containerColor = DeepSpaceDb,
+        topBar = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(CardSurfaceDb)
+                    .border(width = 1.dp, color = BorderDb)
+                    .statusBarsPadding()
+                    .padding(top = 12.dp, bottom = 12.dp, start = 16.dp, end = 16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .size(36.dp)
+                            .background(Color.White.copy(alpha = 0.05f), shape = CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = ElectricBlue,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Text(
+                        text = "PROFIT BY PIPS",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.sp,
+                        color = ElectricBlue
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Column {
+                Text(
+                    text = "INSTRUMENT TYPE",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextSecondary,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.2f), shape = RoundedCornerShape(12.dp))
+                        .border(1.dp, BorderDb, shape = RoundedCornerShape(12.dp))
+                        .padding(4.dp)
+                ) {
+                    listOf("FOREX_STANDARD" to "Forex / Gold", "CRYPTO_INDICES" to "Crypto / Indices").forEach { (instType, label) ->
+                        val isSelected = selectedInstrumentType == instType
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp)
+                                .background(
+                                    color = if (isSelected) ElectricBlue else Color.Transparent,
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                .clickable { selectedInstrumentType = instType },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) Color.White else TextSecondary
+                            )
+                        }
+                    }
+                }
+            }
+
+            StrixaInputField(
+                value = lotsInput,
+                onValueChange = { lotsInput = it },
+                label = "Position Size (Lots)",
+                placeholder = "e.g., 1.5",
+                leadingIcon = "⚖️"
+            )
+
+            StrixaInputField(
+                value = pipsInput,
+                onValueChange = { pipsInput = it },
+                label = "Number of Pips (or Points)",
+                placeholder = "e.g., 50",
+                leadingIcon = "🎯"
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    val lots = lotsInput.toDoubleOrNull()
+                    val pips = pipsInput.toDoubleOrNull()
+
+                    if (lots == null || pips == null) {
+                        validationError = "Please fill in all fields with valid numbers."
+                        calculatedResult = null
+                    } else if (lots <= 0) {
+                        validationError = "Position size must be greater than zero."
+                        calculatedResult = null
+                    } else {
+                        validationError = ""
+                        calculatedResult = calculateProfitByPips(selectedInstrumentType, lots, pips)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp)
+            ) {
+                Text(
+                    text = "CALCULATE",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    letterSpacing = 1.sp
+                )
+            }
+
+            if (validationError.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(BearishRed.copy(alpha = 0.1f), shape = RoundedCornerShape(12.dp))
+                        .border(1.dp, BearishRed.copy(alpha = 0.3f), shape = RoundedCornerShape(12.dp))
+                        .padding(14.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "⚠️", fontSize = 16.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = validationError, color = BearishRed, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+
+            calculatedResult?.let { res ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, GoldGold.copy(alpha = 0.4f), shape = RoundedCornerShape(16.dp)),
+                    colors = CardDefaults.cardColors(containerColor = CardSurfaceDb),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "PIP OUTCOME SUCCESSFUL",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GoldGold,
+                            letterSpacing = 1.sp
+                        )
+
+                        HorizontalDivider()
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "Pip Value (per pip):", fontSize = 12.sp, color = TextSecondary)
+                            Text(
+                                text = String.format(Locale.US, "$%.2f", res.pipValue),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "Estimated Profit or Loss:", fontSize = 12.sp, color = TextSecondary)
+                            val isLoss = res.estimatedProfitLoss < 0
+                            Text(
+                                text = String.format(Locale.US, "%s$%.2f", if (isLoss) "" else "+", res.estimatedProfitLoss),
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (isLoss) BearishRed else BullishGreen
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(120.dp))
         }
     }
 }

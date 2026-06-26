@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.data.ConfluenceRepository
 import com.example.data.ConfluenceSetup
+import com.example.BuildConfig
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -12,6 +14,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.concurrent.TimeUnit
+
+sealed class AiSummaryState {
+    object Idle : AiSummaryState()
+    object Loading : AiSummaryState()
+    data class Success(val summary: String) : AiSummaryState()
+    data class Error(val message: String) : AiSummaryState()
+}
 
 class ConfluenceViewModel(private val repository: ConfluenceRepository) : ViewModel() {
 
@@ -56,6 +70,9 @@ class ConfluenceViewModel(private val repository: ConfluenceRepository) : ViewMo
 
     private val _note = MutableStateFlow("")
     val note = _note.asStateFlow()
+
+    private val _aiSummaryState = MutableStateFlow<AiSummaryState>(AiSummaryState.Idle)
+    val aiSummaryState = _aiSummaryState.asStateFlow()
 
     val loggedSetups: StateFlow<List<ConfluenceSetup>> = repository.allSetups
         .stateIn(
@@ -184,14 +201,12 @@ class ConfluenceViewModel(private val repository: ConfluenceRepository) : ViewMo
             isDoubleHtf = true
         }
 
-        // Calculate Entry Confirmation Score: Each confirmation out of 12 increases the score
+        // Calculate Entry Confirmation Score: Scaled such that 10 confirmations give 100%
         val totalConfirmationsCount = marketStruct.size + candles.size + patterns.size
-        // Maximum = 100, 12 possible options, let's make it proportional:
         val entryConfirmationScore = if (totalConfirmationsCount == 0) {
             0
         } else {
-            // Distribute evenly but cap at 100
-            minOf(100, (totalConfirmationsCount * 100) / 12)
+            minOf(100, (totalConfirmationsCount * 100) / 10)
         }
 
         val details = mutableListOf<String>()
@@ -218,6 +233,9 @@ class ConfluenceViewModel(private val repository: ConfluenceRepository) : ViewMo
         val alignedLtfCount = ltfs.count { it == htfBias }
         
         details.add("📊 Entry Alignments: $alignedLtfCount of 3 ($tf1h, $tf30m, $tf15m)")
+        if (alignedLtfCount < 3) {
+            details.add("⏳ Wait for the LTF alignment with the HTF ($htfBias) for high probability in the calculation.")
+        }
 
         // Base Probability calculation
         var prob = if (isTripleHtf) {
@@ -300,14 +318,152 @@ class ConfluenceViewModel(private val repository: ConfluenceRepository) : ViewMo
             description = "Extremely low probability setup. High likelihood of failure. Higher time frames do not align sufficiently, AOI touches are scarce, or high impact news threatens extreme slippage. Stand aside."
         }
 
+        val finalDescription = if (alignedLtfCount < 3 && htfBias != "NEUTRAL") {
+            description + "\n\n⚠️ Wait for the LTF alignment with the HTF ($htfBias) for high probability in the calculation."
+        } else {
+            description
+        }
+
         return LiveConfluenceResult(
             htfBias = htfBias,
             confluenceLevel = confluenceLevel,
             probabilityPercentage = probabilityPercentage,
-            description = description,
+            description = finalDescription,
             details = details,
             entryConfirmationScore = entryConfirmationScore
         )
+    }
+
+    fun generateAiSummary(
+        symbol: String,
+        htfBias: String,
+        tf1w: String,
+        tf1d: String,
+        tf4h: String,
+        tf1h: String,
+        tf30m: String,
+        tf15m: String,
+        marketStructure: String,
+        candlesticks: String,
+        patterns: String,
+        newsImpact: String,
+        confluenceLevel: String,
+        probabilityPercentage: Int,
+        entryScore: Int
+    ) {
+        _aiSummaryState.value = AiSummaryState.Loading
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val apiKey = BuildConfig.GEMINI_API_KEY
+                if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
+                    _aiSummaryState.value = AiSummaryState.Error("Gemini API Key is not set or invalid in .env / Secrets panel.")
+                    return@launch
+                }
+
+                val prompt = """
+                    You are STRIXA AI, an elite, highly intelligent institutional-grade technical trading strategist.
+                    Analyze this technical trade setup for $symbol and provide a professional, highly synthesized, smart, and cohesive trade summary.
+
+                    Technical Context:
+                    - Asset Symbol: $symbol
+                    - HTF Trend Bias: $htfBias
+                    - Trend across timeframes (1W/1D/4H/1H/30M/15M): $tf1w / $tf1d / $tf4h / $tf1h / $tf30m / $tf15m
+                    - Key Market Structure alignments: $marketStructure
+                    - Candlestick confirmations present: $candlesticks
+                    - Chart patterns present: $patterns
+                    - Today's news impact threat: $newsImpact
+                    - Mathematical confluence probability: $probabilityPercentage% ($confluenceLevel)
+                    - Technical trigger score: $entryScore/100
+
+                    STRIXA AI GENERATION PROTOCOL:
+                    1. DO NOT simply repeat or list out the input facts (e.g., do not write 'Symbol is $symbol, bias is $htfBias'). This is a waste of space.
+                    2. Act like a real expert analyst: synthesize why these pieces align together, what the risks of the setup are (considering news and multi-TF flow), and give a highly intelligent tactical recommendation.
+                    3. If any lower timeframes (1H, 30M, or 15M) are NOT aligned with the HTF Bias ($htfBias), you MUST warn the user: "Wait for lower timeframe alignment with HTF ($htfBias) for a high-probability execution."
+                    4. Keep your output unified, extremely compact, and brief (max 3-4 professional bullet points or a short, direct paragraph). Do NOT split this into separate "Why" and "Why NOT" sections.
+                    5. Start directly with the synthesized summary. No introductions, no generic disclaimers, no friendly greetings.
+                """.trimIndent()
+
+                val escapedPrompt = prompt.replace("\\", "\\\\")
+                    .replace("\"", "\\\"")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r")
+                    .replace("\t", "\\t")
+
+                val jsonPayload = """
+                    {
+                        "contents": [
+                            {
+                                "parts": [
+                                    {
+                                        "text": "$escapedPrompt"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                """.trimIndent()
+
+                val client = OkHttpClient.Builder()
+                    .connectTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(30, TimeUnit.SECONDS)
+                    .writeTimeout(30, TimeUnit.SECONDS)
+                    .build()
+
+                val requestBody = jsonPayload.toRequestBody("application/json; charset=utf-8".toMediaType())
+
+                val request = Request.Builder()
+                    .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$apiKey")
+                    .post(requestBody)
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val body = response.body?.string()
+
+                if (response.isSuccessful && body != null) {
+                    val parsedText = parseGeminiResponse(body)
+                    _aiSummaryState.value = AiSummaryState.Success(parsedText)
+                } else {
+                    _aiSummaryState.value = AiSummaryState.Error("Gemini API call failed (HTTP ${response.code}): ${response.message}")
+                }
+            } catch (e: Exception) {
+                _aiSummaryState.value = AiSummaryState.Error("Network error: ${e.message}")
+            }
+        }
+    }
+
+    private fun parseGeminiResponse(json: String): String {
+        try {
+            val partsToken = "\"parts\""
+            val textToken = "\"text\""
+            
+            var index = json.indexOf(partsToken)
+            if (index == -1) return "Could not generate trade summary. Invalid API response format."
+            
+            index = json.indexOf(textToken, index)
+            if (index == -1) return "Could not generate trade summary. Text field not found."
+            
+            val colonIndex = json.indexOf(":", index)
+            val textStart = json.indexOf("\"", colonIndex) + 1
+            
+            var textEnd = textStart
+            while (textEnd < json.length) {
+                if (json[textEnd] == '\"' && json[textEnd - 1] != '\\') {
+                    break
+                }
+                textEnd++
+            }
+            
+            if (textStart >= textEnd) return "Could not parse trade summary text."
+            
+            val escapedText = json.substring(textStart, textEnd)
+            return escapedText
+                .replace("\\n", "\n")
+                .replace("\\t", "\t")
+                .replace("\\\"", "\"")
+                .replace("\\\\", "\\")
+        } catch (e: Exception) {
+            return "Failed to parse AI response: ${e.message}"
+        }
     }
 }
 
