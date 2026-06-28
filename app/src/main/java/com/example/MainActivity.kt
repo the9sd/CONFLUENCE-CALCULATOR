@@ -1948,27 +1948,6 @@ fun ConfluenceResultsPage(
     onBack: () -> Unit
 ) {
     val result by viewModel.liveResult.collectAsState()
-    val aiSummaryState by viewModel.aiSummaryState.collectAsState()
-
-    LaunchedEffect(Unit) {
-        viewModel.generateAiSummary(
-            symbol = viewModel.symbol.value,
-            htfBias = result.htfBias,
-            tf1w = viewModel.tf1w.value,
-            tf1d = viewModel.tf1d.value,
-            tf4h = viewModel.tf4h.value,
-            tf1h = viewModel.tf1h.value,
-            tf30m = viewModel.tf30m.value,
-            tf15m = viewModel.tf15m.value,
-            marketStructure = viewModel.selectedMarketStructure.value.joinToString(", "),
-            candlesticks = viewModel.selectedCandlesticks.value.joinToString(", "),
-            patterns = viewModel.selectedPatterns.value.joinToString(", "),
-            newsImpact = viewModel.newsImpact.value,
-            confluenceLevel = result.confluenceLevel,
-            probabilityPercentage = result.probabilityPercentage,
-            entryScore = result.entryConfirmationScore
-        )
-    }
 
     Scaffold(
         modifier = Modifier
@@ -2188,132 +2167,6 @@ fun ConfluenceResultsPage(
                             else -> TextPrimary
                         }
                     )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // AI Trade Analysis Card
-            Card(
-                colors = CardDefaults.cardColors(containerColor = CardSurfaceDb),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderDb),
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = "AI Analysis",
-                                tint = GoldGold,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "STRIXA AI SUMMARY",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary,
-                                letterSpacing = 1.sp
-                            )
-                        }
-                        
-                        // Regenerate Button
-                        IconButton(
-                            onClick = {
-                                viewModel.generateAiSummary(
-                                    symbol = viewModel.symbol.value,
-                                    htfBias = result.htfBias,
-                                    tf1w = viewModel.tf1w.value,
-                                    tf1d = viewModel.tf1d.value,
-                                    tf4h = viewModel.tf4h.value,
-                                    tf1h = viewModel.tf1h.value,
-                                    tf30m = viewModel.tf30m.value,
-                                    tf15m = viewModel.tf15m.value,
-                                    marketStructure = viewModel.selectedMarketStructure.value.joinToString(", "),
-                                    candlesticks = viewModel.selectedCandlesticks.value.joinToString(", "),
-                                    patterns = viewModel.selectedPatterns.value.joinToString(", "),
-                                    newsImpact = viewModel.newsImpact.value,
-                                    confluenceLevel = result.confluenceLevel,
-                                    probabilityPercentage = result.probabilityPercentage,
-                                    entryScore = result.entryConfirmationScore
-                                )
-                            },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "Regenerate AI analysis",
-                                tint = ElectricBlue,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    when (val state = aiSummaryState) {
-                        is AiSummaryState.Idle -> {
-                            Text(
-                                text = "Preparing STRIXA AI analysis...",
-                                fontSize = 12.sp,
-                                color = TextSecondary
-                            )
-                        }
-                        is AiSummaryState.Loading -> {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                CircularProgressIndicator(
-                                    color = ElectricBlue,
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "STRIXA AI is analyzing market structures and pattern confirmations...",
-                                    fontSize = 11.sp,
-                                    color = TextSecondary,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                        is AiSummaryState.Success -> {
-                            Text(
-                                text = state.summary,
-                                fontSize = 13.sp,
-                                lineHeight = 19.sp,
-                                color = TextPrimary,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                        is AiSummaryState.Error -> {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ErrorOutline,
-                                    contentDescription = "Error",
-                                    tint = BearishRed,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = state.message,
-                                    fontSize = 12.sp,
-                                    color = BearishRed,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                    }
                 }
             }
 
@@ -5015,7 +4868,7 @@ fun StandardCalculatorScreen(
         val cleanExpr = expr.replace(" ", "")
         for (i in cleanExpr.indices) {
             val c = cleanExpr[i]
-            if (c.isDigit() || c == '.') {
+            if (c.isDigit() || c == '.' || c == '%') {
                 currentNum.append(c)
             } else if (c == '-' && (i == 0 || cleanExpr[i - 1] in listOf('+', '-', '×', '÷'))) {
                 currentNum.append(c)
@@ -5054,8 +4907,22 @@ fun StandardCalculatorScreen(
             val token = tokens[i]
             if (token == "×" || token == "÷") {
                 val op = token
-                val prevVal = pass1.removeAt(pass1.size - 1).toDoubleOrNull() ?: 0.0
-                val nextVal = if (i + 1 < tokens.size) tokens[i + 1].toDoubleOrNull() ?: 0.0 else 0.0
+                val prevToken = if (pass1.isNotEmpty()) pass1.removeAt(pass1.size - 1) else "0"
+                val prevVal = if (prevToken.endsWith("%")) {
+                    val num = prevToken.dropLast(1).toDoubleOrNull() ?: 0.0
+                    num / 100.0
+                } else {
+                    prevToken.toDoubleOrNull() ?: 0.0
+                }
+                
+                val nextToken = if (i + 1 < tokens.size) tokens[i + 1] else "0"
+                val nextVal = if (nextToken.endsWith("%")) {
+                    val num = nextToken.dropLast(1).toDoubleOrNull() ?: 0.0
+                    num / 100.0
+                } else {
+                    nextToken.toDoubleOrNull() ?: 0.0
+                }
+                
                 val res = if (op == "×") prevVal * nextVal else {
                     if (nextVal == 0.0) 0.0 else prevVal / nextVal
                 }
@@ -5068,11 +4935,23 @@ fun StandardCalculatorScreen(
         }
 
         if (pass1.isEmpty()) return 0.0
-        var result = pass1[0].toDoubleOrNull() ?: 0.0
+        var result = if (pass1[0].endsWith("%")) {
+            val num = pass1[0].dropLast(1).toDoubleOrNull() ?: 0.0
+            num / 100.0
+        } else {
+            pass1[0].toDoubleOrNull() ?: 0.0
+        }
+        
         var j = 1
         while (j < pass1.size) {
             val op = pass1[j]
-            val nextVal = if (j + 1 < pass1.size) pass1[j + 1].toDoubleOrNull() ?: 0.0 else 0.0
+            val nextToken = if (j + 1 < pass1.size) pass1[j + 1] else "0"
+            val nextVal = if (nextToken.endsWith("%")) {
+                val num = nextToken.dropLast(1).toDoubleOrNull() ?: 0.0
+                result * (num / 100.0)
+            } else {
+                nextToken.toDoubleOrNull() ?: 0.0
+            }
             if (op == "+") {
                 result += nextVal
             } else if (op == "-") {
@@ -5105,35 +4984,6 @@ fun StandardCalculatorScreen(
             val newText = text.substring(0, start - 1) + text.substring(start)
             currentInputVal = TextFieldValue(newText, TextRange(start - 1))
         }
-    }
-
-    fun applyPercentAtCursor(value: TextFieldValue): TextFieldValue {
-        val text = value.text
-        val cursor = value.selection.start
-        if (text.isEmpty() || cursor <= 0) return value
-
-        var start = cursor - 1
-        while (start >= 0 && (text[start].isDigit() || text[start] == '.')) {
-            start--
-        }
-        if (start >= 0 && text[start] == '-') {
-            if (start == 0 || text[start - 1] in listOf('+', '-', '×', '÷')) {
-                start--
-            }
-        }
-        val numStart = start + 1
-        val numEnd = cursor
-        if (numStart < numEnd) {
-            val numStr = text.substring(numStart, numEnd)
-            val numDouble = numStr.toDoubleOrNull()
-            if (numDouble != null) {
-                val percentStr = formatDouble(numDouble / 100.0)
-                val newText = text.substring(0, numStart) + percentStr + text.substring(numEnd)
-                val newCursor = numStart + percentStr.length
-                return TextFieldValue(newText, TextRange(newCursor))
-            }
-        }
-        return value
     }
 
     fun commitPendingHistory() {
@@ -5180,9 +5030,7 @@ fun StandardCalculatorScreen(
                     currentInputVal = TextFieldValue(prevResult + key, TextRange((prevResult + key).length))
                 }
                 "%" -> {
-                    val resDouble = prevResult.toDoubleOrNull() ?: 0.0
-                    val percentVal = formatDouble(resDouble / 100.0)
-                    currentInputVal = TextFieldValue(percentVal, TextRange(percentVal.length))
+                    currentInputVal = TextFieldValue(prevResult + "%", TextRange((prevResult + "%").length))
                 }
                 "⌫" -> {
                     currentInputVal = TextFieldValue("", TextRange.Zero)
@@ -5251,7 +5099,11 @@ fun StandardCalculatorScreen(
                     }
                 }
                 key == "%" -> {
-                    currentInputVal = applyPercentAtCursor(currentInputVal)
+                    val text = currentInputVal.text
+                    val cursor = currentInputVal.selection.start
+                    if (cursor > 0 && (text[cursor - 1].isDigit() || text[cursor - 1] == '.' || text[cursor - 1] == '%')) {
+                        insertText("%")
+                    }
                 }
                 key in listOf("+", "-", "×", "÷") -> {
                     val text = currentInputVal.text
