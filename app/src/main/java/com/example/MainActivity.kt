@@ -197,11 +197,21 @@ class MainActivity : ComponentActivity() {
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {
-                    if (showSplash) {
-                        SplashScreen()
-                    } else {
-                        val viewModel: ConfluenceViewModel by viewModels { factory }
-                        MainDashboardScreen(viewModel = viewModel)
+                    AnimatedContent(
+                        targetState = showSplash,
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(700)).togetherWith(
+                                fadeOut(animationSpec = tween(700))
+                            )
+                        },
+                        label = "SplashToMainTransition"
+                    ) { isSplash ->
+                        if (isSplash) {
+                            SplashScreen()
+                        } else {
+                            val viewModel: ConfluenceViewModel by viewModels { factory }
+                            MainDashboardScreen(viewModel = viewModel)
+                        }
                     }
                 }
             }
