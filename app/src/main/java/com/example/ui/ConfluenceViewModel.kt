@@ -135,6 +135,22 @@ class ConfluenceViewModel(private val repository: ConfluenceRepository) : ViewMo
 
     fun updateNewsImpact(value: String) { _newsImpact.value = value }
 
+    fun resetAllInputs() {
+        _symbol.value = "EURUSD"
+        _tf1w.value = "NEUTRAL"
+        _tf1d.value = "NEUTRAL"
+        _tf4h.value = "NEUTRAL"
+        _tf1h.value = "NEUTRAL"
+        _tf30m.value = "NEUTRAL"
+        _tf15m.value = "NEUTRAL"
+        _aoiTouches.value = 1
+        _selectedMarketStructure.value = emptySet()
+        _selectedCandlesticks.value = emptySet()
+        _selectedPatterns.value = emptySet()
+        _newsImpact.value = "NO_IMPACT"
+        _note.value = ""
+    }
+
     fun logCurrentSetup() {
         viewModelScope.launch {
             val result = liveResult.value

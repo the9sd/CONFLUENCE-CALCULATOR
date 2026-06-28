@@ -3,6 +3,7 @@ package com.example
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
@@ -100,6 +101,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.CompositionLocalProvider
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -117,7 +120,26 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.graphics.SolidColor
+import android.content.Context
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.window.Dialog
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -170,7 +192,7 @@ class MainActivity : ComponentActivity() {
                 var showSplash by remember { mutableStateOf(true) }
 
                 LaunchedEffect(Unit) {
-                    delay(2200) // Beautiful 2.2 second splash as requested
+                    delay(3800) // Stay a little bit longer with all the animations as requested
                     showSplash = false
                 }
 
@@ -214,15 +236,16 @@ fun SplashScreen() {
             .fillMaxSize()
             .background(DeepSpaceDb)
             .padding(24.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(30.dp))
+        Spacer(modifier = Modifier.weight(1.0f))
 
         // Center visual icon showing Candlesticks + Rings
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.scale(scale).alpha(alpha)
+            modifier = Modifier
+                .scale(scale)
+                .alpha(alpha)
         ) {
             // Custom brand logo via reusable StrixaLogo component
             StrixaLogo(
@@ -242,44 +265,97 @@ fun SplashScreen() {
             )
             
             Text(
-                text = "Trading Alignment Matrix",
+                text = "Where Discipline Meets Precision",
                 fontSize = 14.sp,
-                fontWeight = FontWeight.Light,
-                color = TextSecondary,
-                letterSpacing = 2.sp,
-                modifier = Modifier.padding(top = 8.dp)
+                fontWeight = FontWeight.Normal,
+                color = GoldGold,
+                letterSpacing = 1.5.sp,
+                modifier = Modifier.padding(top = 10.dp)
             )
         }
+
+        Spacer(modifier = Modifier.weight(1.0f))
+
+        // Circular loading icon with amazing motion
+        Box(
+            contentAlignment = Alignment.Center
+        ) {
+            val infiniteRotation = rememberInfiniteTransition(label = "spinner_rotate")
+            val angle by infiniteRotation.animateFloat(
+                initialValue = 0f,
+                targetValue = 360f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1200, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "angle"
+            )
+            
+            // Background glow halo
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .background(ElectricBlue.copy(alpha = 0.08f), shape = CircleShape)
+            )
+
+            // Dynamic cosmic ring
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .size(40.dp)
+                    .graphicsLayer { rotationZ = angle },
+                color = ElectricBlue,
+                strokeWidth = 3.dp
+            )
+            
+            // Outer small planetary dot inside the rotation to make it look extra premium
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .graphicsLayer { rotationZ = -angle * 1.5f },
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .background(BullishGreen, shape = CircleShape)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         // Built by Srijan credit exactly as requested
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(bottom = 32.dp)
+            modifier = Modifier.padding(bottom = 24.dp)
         ) {
             Text(
                 text = buildAnnotatedString {
-                    append("built with ❤️ by ")
+                    append("Designed & Built with ❤️ by ")
                     withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = TextPrimary)) {
                         append("SRIJAN")
                     }
                 },
-                fontSize = 15.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
-                letterSpacing = 1.sp,
+                letterSpacing = 0.8.sp,
                 color = TextSecondary,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "v1.0.0 • Offline Terminal",
-                fontSize = 11.sp,
+                text = "v2.0.2",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Normal,
                 color = TextMuted,
-                letterSpacing = 1.sp
+                letterSpacing = 1.sp,
+                textAlign = TextAlign.Center
             )
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
     val symbol by viewModel.symbol.collectAsState()
@@ -313,6 +389,37 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
     var previousIndex by remember { mutableStateOf(0) }
     var previousScrollOffset by remember { mutableStateOf(0) }
     var isBottomBarVisible by remember { mutableStateOf(true) }
+    var isConfluenceRefreshing by remember { mutableStateOf(false) }
+    val confluencePullState = rememberPullToRefreshState()
+    val scope = rememberCoroutineScope()
+
+    val context = LocalContext.current
+    var lastBackPressTime by remember { mutableStateOf(0L) }
+    var showBackExitToast by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showBackExitToast) {
+        if (showBackExitToast) {
+            delay(2000)
+            showBackExitToast = false
+        }
+    }
+
+    BackHandler(enabled = true) {
+        if (showResultsPage) {
+            showResultsPage = false
+        } else if (selectedTab != "CONFLUENCE") {
+            selectedTab = "CONFLUENCE"
+        } else {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastBackPressTime < 2000) {
+                val activity = context as? android.app.Activity
+                activity?.finishAndRemoveTask()
+            } else {
+                lastBackPressTime = currentTime
+                showBackExitToast = true
+            }
+        }
+    }
 
     LaunchedEffect(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) {
         val currentIndex = listState.firstVisibleItemIndex
@@ -376,10 +483,14 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "Daar ki Maa ki C***",
+                                    text = buildAnnotatedString {
+                                        append("Daar ki Maa ki... ")
+                                        withStyle(style = SpanStyle(fontWeight = FontWeight.ExtraBold)) {
+                                            append("Puja Karo")
+                                        }
+                                    },
                                     fontSize = 11.sp,
                                     color = GoldGold,
-                                    fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.sp
                                 )
                             }
@@ -389,9 +500,7 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
                                     .size(40.dp)
                                     .background(Color.White.copy(alpha = 0.05f), shape = CircleShape)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Menu,
-                                    contentDescription = "Menu Panel",
+                                InfoIconRedesign(
                                     tint = ElectricBlue,
                                     modifier = Modifier.size(24.dp)
                                 )
@@ -400,14 +509,36 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
                     }
                 }
             ) { innerPadding ->
-                LazyColumn(
-                    state = listState,
+                PullToRefreshBox(
+                    isRefreshing = isConfluenceRefreshing,
+                    onRefresh = {
+                        scope.launch {
+                            isConfluenceRefreshing = true
+                            viewModel.resetAllInputs()
+                            delay(800)
+                            isConfluenceRefreshing = false
+                        }
+                    },
+                    state = confluencePullState,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    val confluenceScaleY = 1f + (confluencePullState.distanceFraction * 0.12f).coerceAtMost(0.12f)
+                    val confluenceTranslateY = confluencePullState.distanceFraction * 120f
+
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleY = confluenceScaleY
+                                translationY = confluenceTranslateY
+                                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
+                            }
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
                 // GIVE INPUTS section indicator
                 item {
                     Text(
@@ -844,7 +975,7 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
                 ) {
                     Text(
                         text = buildAnnotatedString {
-                            append("Build with ❤️by ")
+                            append("Designed & Built with ❤️ by ")
                             withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = TextPrimary)) {
                                 append("SRIJAN")
                             }
@@ -857,6 +988,7 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
+    }
     }
 }
 
@@ -881,6 +1013,44 @@ fun MainDashboardScreen(viewModel: ConfluenceViewModel) {
         isOpen = isDrawerOpen,
         onClose = { isDrawerOpen = false }
     )
+
+    AnimatedVisibility(
+        visible = showBackExitToast,
+        enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+        exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(bottom = 100.dp)
+    ) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = CardSurfaceDb.copy(alpha = 0.95f)),
+            border = BorderStroke(1.dp, ElectricBlue.copy(alpha = 0.6f)),
+            shape = RoundedCornerShape(24.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            modifier = Modifier
+                .padding(horizontal = 32.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = "Exit Warning",
+                    tint = ElectricBlue,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "Hit Back Once Again To Close The App",
+                    color = TextPrimary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.5.sp
+                )
+            }
+        }
+    }
 }
 }
 }
@@ -1331,6 +1501,35 @@ fun Modifier.bounceClick(onClick: () -> Unit = {}): Modifier {
             interactionSource = interactionSource,
             indication = androidx.compose.foundation.LocalIndication.current,
             onClick = onClick
+        )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun Modifier.bounceClickWithLong(
+    onClick: () -> Unit = {},
+    onLongClick: () -> Unit = {}
+): Modifier {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.94f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "bounce"
+    )
+    return this
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
+        .combinedClickable(
+            interactionSource = interactionSource,
+            indication = androidx.compose.foundation.LocalIndication.current,
+            onClick = onClick,
+            onLongClick = onLongClick
         )
 }
 
@@ -2206,7 +2405,7 @@ fun ConfluenceResultsPage(
             // Build with ❤️ by SRIJAN
             Text(
                 text = buildAnnotatedString {
-                    append("Build with ❤️by ")
+                    append("Designed & Built with ❤️ by ")
                     withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = TextPrimary)) {
                         append("SRIJAN")
                     }
@@ -2236,6 +2435,16 @@ fun RightSidePanel(
         }
     }
 
+    BackHandler(enabled = isOpen) {
+        if (currentScreen != "MENU") {
+            currentScreen = "MENU"
+        } else {
+            onClose()
+        }
+    }
+
+    val panelAlpha = if (currentScreen == "MENU") 0.92f else 1.0f
+
     AnimatedVisibility(
         visible = isOpen,
         enter = androidx.compose.animation.slideInHorizontally(
@@ -2259,15 +2468,19 @@ fun RightSidePanel(
                     .align(Alignment.CenterEnd)
                     .fillMaxHeight()
                     .fillMaxWidth(0.85f)
-                    .background(CardSurfaceDb)
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
+                    .background(
+                        CardSurfaceDb.copy(alpha = panelAlpha),
+                        shape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp)
+                    )
                     .border(
                         1.dp,
-                        BorderDb,
-                        shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+                        BorderDb.copy(alpha = panelAlpha),
+                        shape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp)
                     )
+                    .clip(RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp))
                     .clickable(enabled = false) {}
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
                     .padding(top = 20.dp, bottom = 20.dp, start = 16.dp, end = 16.dp)
             ) {
                 // Pin the Header
@@ -2300,11 +2513,11 @@ fun RightSidePanel(
                         Text(
                             text = when (currentScreen) {
                                 "MENU" -> "STRIXA INFO"
-                                "CALCULATION_LOGIC" -> "CALCULATION LOGIC"
                                 "HOW_TO_USE" -> "HOW TO USE"
-                                "DISCLAIMER" -> "DISCLAIMER"
+                                "DISCLAIMER" -> "USAGE & DISCLAIMER"
+                                "ABOUT_STRIXA_CONFLUENCE" -> "ABOUT STRIXA CONFLUENCE"
                                 "ABOUT_RISK_LAB" -> "ABOUT RISK LAB"
-                                "ABOUT_STRIXA_AI" -> "ABOUT STRIXA AI"
+                                "FOR_TRADERS" -> "FOR TRADERS"
                                 else -> "INFO PANEL"
                             },
                             fontSize = 14.sp,
@@ -2387,34 +2600,41 @@ fun RightSidePanel(
                                         )
 
                                         MenuRow(
-                                            icon = "🧮",
-                                            title = "Calculation Logic",
-                                            onClick = { currentScreen = "CALCULATION_LOGIC" }
-                                        )
-                                        MenuRow(
                                             icon = "❓",
                                             title = "How to Use",
-                                            onClick = { currentScreen = "HOW_TO_USE" }
+                                            subtitle = "Learn the core workflow of STRIXA.",
+                                            onClick = { currentScreen = "HOW_TO_USE" },
+                                            accentColor = ElectricBlue
                                         )
                                         MenuRow(
                                             icon = "⚠️",
                                             title = "Usage & Disclaimer",
-                                            onClick = { currentScreen = "DISCLAIMER" }
+                                            subtitle = "Risk warnings and offline behavior.",
+                                            onClick = { currentScreen = "DISCLAIMER" },
+                                            accentColor = BearishRed
+                                        )
+                                        MenuRow(
+                                            icon = "🧮",
+                                            title = "About Strixa Confluence",
+                                            subtitle = "Deep-dive technical scoring metrics.",
+                                            onClick = { currentScreen = "ABOUT_STRIXA_CONFLUENCE" },
+                                            accentColor = GoldGold
                                         )
                                         MenuRow(
                                             icon = "ℹ️",
                                             title = "About Risk Lab",
-                                            onClick = { currentScreen = "ABOUT_RISK_LAB" }
+                                            subtitle = "Principles of safe capital sizing.",
+                                            onClick = { currentScreen = "ABOUT_RISK_LAB" },
+                                            accentColor = BullishGreen
                                         )
                                         MenuRow(
-                                            icon = "❤️",
-                                            title = "About STRIXA AI",
-                                            onClick = { currentScreen = "ABOUT_STRIXA_AI" }
+                                            icon = "🔥",
+                                            title = "For Traders",
+                                            subtitle = "Psychological models and control keys.",
+                                            onClick = { currentScreen = "FOR_TRADERS" },
+                                            accentColor = Color(0xFFFF9800)
                                         )
                                     }
-                                }
-                                "CALCULATION_LOGIC" -> {
-                                    CalculationLogicPage()
                                 }
                                 "HOW_TO_USE" -> {
                                     HowToUsePage()
@@ -2422,11 +2642,14 @@ fun RightSidePanel(
                                 "DISCLAIMER" -> {
                                     UsageDisclaimerPage()
                                 }
+                                "ABOUT_STRIXA_CONFLUENCE" -> {
+                                    AboutStrixaConfluencePage()
+                                }
                                 "ABOUT_RISK_LAB" -> {
                                     AboutRiskLabPage()
                                 }
-                                "ABOUT_STRIXA_AI" -> {
-                                    AboutStrixaAiPage()
+                                "FOR_TRADERS" -> {
+                                    ForTradersPage()
                                 }
                             }
                         }
@@ -2441,34 +2664,64 @@ fun RightSidePanel(
 fun MenuRow(
     icon: String,
     title: String,
-    onClick: () -> Unit
+    subtitle: String,
+    onClick: () -> Unit,
+    accentColor: Color = ElectricBlue
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White.copy(alpha = 0.03f), shape = RoundedCornerShape(12.dp))
+            .background(Color.White.copy(alpha = 0.02f), shape = RoundedCornerShape(12.dp))
             .border(1.dp, BorderDb, shape = RoundedCornerShape(12.dp))
             .bounceClick(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
+            // Sleek Left Accent Line
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(26.dp)
+                    .background(accentColor, shape = RoundedCornerShape(2.dp))
+            )
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
             Text(
                 text = icon,
                 fontSize = 18.sp
             )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = title,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
+            
+            Spacer(modifier = Modifier.width(10.dp))
+            
+            Column {
+                Text(
+                    text = title.uppercase(),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    letterSpacing = 0.5.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    fontSize = 10.sp,
+                    color = TextMuted,
+                    lineHeight = 13.sp
+                )
+            }
         }
+        
+        Spacer(modifier = Modifier.width(8.dp))
+        
         Text(
             text = "›",
-            fontSize = 20.sp,
+            fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = TextSecondary
         )
@@ -2476,20 +2729,20 @@ fun MenuRow(
 }
 
 @Composable
-fun CalculationLogicPage() {
+fun AboutStrixaConfluencePage() {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "Learn how each mathematical calculator functions to safeguard your trading decisions.",
+            text = "Discover how Strixa Confluence analyzes complex technical matrices to derive a high-probability consensus score.",
             fontSize = 12.sp,
             color = TextSecondary,
             lineHeight = 16.sp,
             modifier = Modifier.padding(horizontal = 4.dp)
         )
 
-        // Section 1: Position Size Calculator
+        // Section 1: How it Works
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2498,33 +2751,23 @@ fun CalculationLogicPage() {
                 .padding(14.dp)
         ) {
             Text(
-                text = "📊 Position Size Calculator",
-                fontSize = 14.sp,
+                text = "⚡ CONFLUENCE ALIGNMENT CORE",
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = ElectricBlue
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Determines the appropriate position size based on the selected risk to guarantee capital protection.",
+                text = "The system evaluates multiple independent technical streams (trends, levels, candlesticks, patterns) and weights them proportionally. Setup conviction is graded as follows:",
                 fontSize = 12.sp,
                 color = TextSecondary,
                 lineHeight = 18.sp
             )
             Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "Key Inputs & Meaning:",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
-            Spacer(modifier = Modifier.height(6.dp))
             val items = listOf(
-                "• Account Balance: Your total trading account equity.",
-                "• Risk %: The percentage of your balance you are willing to lose.",
-                "• Risk Amount: Calculated dollar value based on your Risk %.",
-                "• Entry Price: The price level where you enter the trade.",
-                "• Stop Loss: The price level where you exit to limit losses.",
-                "• Instrument: Forex pairs, commodities, or indices affecting lot calculations."
+                "🟢 High Confluence (75% - 100%): Strong multi-timeframe directional agreement. High-probability entry zones.",
+                "🟡 Moderate Confluence (50% - 74%): Partial alignment. Requires strict entry confirmation or smaller position size.",
+                "🔴 Low Confluence (< 50%): Indecisive structures, opposing trends, or poor local validation. High risk of fakeouts."
             )
             items.forEach { item ->
                 Text(
@@ -2532,12 +2775,12 @@ fun CalculationLogicPage() {
                     fontSize = 11.sp,
                     color = TextSecondary,
                     lineHeight = 16.sp,
-                    modifier = Modifier.padding(vertical = 2.dp)
+                    modifier = Modifier.padding(vertical = 4.dp)
                 )
             }
         }
 
-        // Section 2: Profit Calculator
+        // Section 2: Confluence Metrics
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2546,86 +2789,98 @@ fun CalculationLogicPage() {
                 .padding(14.dp)
         ) {
             Text(
-                text = "💰 Profit Calculator",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = BullishGreen
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Estimates the potential profit and potential loss using the selected Risk-to-Reward (RR) ratio.",
-                fontSize = 12.sp,
-                color = TextSecondary,
-                lineHeight = 18.sp
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "Key Inputs:",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            val items = listOf(
-                "• Account Balance: Your total account equity.",
-                "• Risk %: The proportion of account equity to risk on the setup.",
-                "• Risk : Reward (RR): Ratio of potential risk (e.g., 1) to potential reward (e.g., 3)."
-            )
-            items.forEach { item ->
-                Text(
-                    text = item,
-                    fontSize = 11.sp,
-                    color = TextSecondary,
-                    lineHeight = 16.sp,
-                    modifier = Modifier.padding(vertical = 2.dp)
-                )
-            }
-        }
-
-        // Section 3: Profit by Pips
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White.copy(alpha = 0.02f), shape = RoundedCornerShape(12.dp))
-                .border(1.dp, BorderDb, shape = RoundedCornerShape(12.dp))
-                .padding(14.dp)
-        ) {
-            Text(
-                text = "🎯 Profit by Pips",
-                fontSize = 14.sp,
+                text = "📊 CRITICAL MATRIX VECTORS",
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = GoldGold
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Estimates net profit or loss based on the entered number of pips and selected position size.",
-                fontSize = 12.sp,
-                color = TextSecondary,
-                lineHeight = 18.sp
+            val vectors = listOf(
+                "• Trend Alignment: Validating synchronized directions across High Timeframes (HTF) and Execution Timeframes (LTF).",
+                "• Key Structure: Plotting entries strictly near major Support/Resistance lines, pivots, or psychological zones.",
+                "• Candlestick Actions: Looking for immediate momentum triggers (Engulfing patterns, Hammers, Pinbars) at key zones.",
+                "• Technical Indicators: Cross-referencing oversold/overbought oscillations and moving average crossovers for extra verification."
             )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "Key Inputs:",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            val items = listOf(
-                "• Pair / Instrument: The asset pair being traded.",
-                "• Position Size (Lots): The size of your trade in lots.",
-                "• Number of Pips: The total distance in pips of the projected price move."
-            )
-            items.forEach { item ->
+            vectors.forEach { vec ->
                 Text(
-                    text = item,
+                    text = vec,
                     fontSize = 11.sp,
                     color = TextSecondary,
                     lineHeight = 16.sp,
-                    modifier = Modifier.padding(vertical = 2.dp)
+                    modifier = Modifier.padding(vertical = 3.dp)
                 )
             }
         }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        DesignedAndBuiltChip()
+    }
+}
+
+@Composable
+fun DesignedAndBuiltChip(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(CardSurfaceDb, shape = RoundedCornerShape(10.dp))
+            .border(1.dp, BorderDb, shape = RoundedCornerShape(10.dp))
+            .padding(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = buildAnnotatedString {
+                append("Designed & Built with ❤️ by ")
+                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = TextPrimary)) {
+                    append("SRIJAN")
+                }
+            },
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = TextSecondary
+        )
+        Text(
+            text = "Version 2.0.1",
+            fontSize = 10.sp,
+            color = TextMuted
+        )
+    }
+}
+
+@Composable
+fun InfoIconRedesign(
+    modifier: Modifier = Modifier,
+    tint: Color = ElectricBlue
+) {
+    Canvas(modifier = modifier.size(24.dp)) {
+        val strokeWidthPx = 2.dp.toPx()
+        
+        // Upper bar (Full width)
+        drawLine(
+            color = tint,
+            start = Offset(4.dp.toPx(), 6.dp.toPx()),
+            end = Offset(20.dp.toPx(), 6.dp.toPx()),
+            strokeWidth = strokeWidthPx,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
+        
+        // Middle bar (Slightly smaller, aligned to the right)
+        drawLine(
+            color = tint,
+            start = Offset(9.dp.toPx(), 12.dp.toPx()),
+            end = Offset(20.dp.toPx(), 12.dp.toPx()),
+            strokeWidth = strokeWidthPx,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
+        
+        // Lower bar (Even smaller, aligned to the right)
+        drawLine(
+            color = tint,
+            start = Offset(14.dp.toPx(), 18.dp.toPx()),
+            end = Offset(20.dp.toPx(), 18.dp.toPx()),
+            strokeWidth = strokeWidthPx,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
     }
 }
 
@@ -2636,7 +2891,7 @@ fun HowToUsePage() {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text(
-            text = "Follow this recommended workflow to leverage the power of STRIXA AI for consistent trading results:",
+            text = "Follow this recommended workflow to leverage the power of STRIXA for consistent trading results:",
             fontSize = 12.sp,
             color = TextSecondary,
             lineHeight = 18.sp,
@@ -2646,7 +2901,7 @@ fun HowToUsePage() {
         val steps = listOf(
             "1. Open Confluence." to "Navigate to the main analyzer screen of the app.",
             "2. Complete all Confluence inputs." to "Enter the trend details, select structures, candlesticks, and chart patterns.",
-            "3. Press Analyze." to "Trigger STRIXA AI to evaluate alignment score and generate a probability.",
+            "3. Press Analyze." to "Trigger STRIXA to evaluate alignment score and generate a probability.",
             "4. Review the STRIXA analysis." to "Read the synthesized technical brief summary and review TF alignment requirements.",
             "5. Open Risk Lab." to "Switch over to the calculator suite to calculate the math for execution.",
             "6. Use the appropriate calculator." to "Select Position Size, Profit, or Pip Calculator for accurate parameters."
@@ -2737,8 +2992,8 @@ fun UsageDisclaimerPage() {
         }
 
         val points = listOf(
-            "STRIXA AI is designed to assist with trade planning and risk management.",
-            "STRIXA AI does not provide financial advice or guaranteed trading signals.",
+            "STRIXA is designed to assist with trade planning and risk management.",
+            "STRIXA does not provide financial advice or guaranteed trading signals.",
             "All calculations are estimates.",
             "Market conditions, spreads, commissions, swaps, and slippage may affect actual trading results.",
             "Always verify every value before placing a live trade.",
@@ -2816,11 +3071,14 @@ fun AboutRiskLabPage() {
                 )
             }
         }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        DesignedAndBuiltChip()
     }
 }
 
 @Composable
-fun AboutStrixaAiPage() {
+fun ForTradersPage() {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -2838,7 +3096,7 @@ fun AboutStrixaAiPage() {
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "STRIXA AI",
+                text = "FOR TRADERS",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Black,
                 color = TextPrimary,
@@ -2846,7 +3104,7 @@ fun AboutStrixaAiPage() {
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "Your Personal Trading Intelligence.",
+                text = "Master Your Mind. Protect Your Capital.",
                 fontSize = 11.sp,
                 color = TextSecondary,
                 textAlign = TextAlign.Center
@@ -2859,72 +3117,40 @@ fun AboutStrixaAiPage() {
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "STRIXA AI is a personal trading companion focused on:",
-                fontSize = 12.sp,
-                color = TextPrimary,
-                fontWeight = FontWeight.Bold
+            val rules = listOf(
+                "🧠 Emotional Control" to "The market is a mirror of your emotions. Do not let greed drive your entries or fear dictate your exits. Trade the plan, not the feeling.",
+                "🧘 Stress Management" to "Overtrading is the main source of trading anxiety. If you feel stressed, step away from the charts. High-quality setups do not require force.",
+                "🛡️ Capital Protection" to "Capital preservation is the ultimate edge. Your main job is not to make money, but to keep your losses small so you can trade another day."
             )
 
-            val features = listOf(
-                "📈 Market Analysis" to "Multi-timeframe mathematical confluence evaluations backed by artificial intelligence.",
-                "🛡️ Risk Management" to "Strict position sizing and reward estimation tools to minimize capital drawdown."
-            )
-
-            features.forEach { (title, desc) ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Top
+            rules.forEach { (title, desc) ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White.copy(alpha = 0.02f), shape = RoundedCornerShape(10.dp))
+                        .border(1.dp, BorderDb, shape = RoundedCornerShape(10.dp))
+                        .padding(12.dp)
                 ) {
                     Text(
-                        text = "✓",
-                        fontSize = 14.sp,
+                        text = title,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = BullishGreen,
-                        modifier = Modifier.width(20.dp)
+                        color = ElectricBlue
                     )
-                    Column {
-                        Text(
-                            text = title,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
-                        )
-                        Spacer(modifier = Modifier.height(1.dp))
-                        Text(
-                            text = desc,
-                            fontSize = 11.sp,
-                            color = TextSecondary,
-                            lineHeight = 15.sp
-                        )
-                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = desc,
+                        fontSize = 11.sp,
+                        color = TextSecondary,
+                        lineHeight = 15.sp
+                    )
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White.copy(alpha = 0.02f), shape = RoundedCornerShape(10.dp))
-                .border(1.dp, BorderDb, shape = RoundedCornerShape(10.dp))
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = "Designed & Built with ❤️ by Srijan",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
-            )
-            Text(
-                text = "Version 1.0.0",
-                fontSize = 10.sp,
-                color = TextMuted
-            )
-        }
+        DesignedAndBuiltChip()
     }
 }
 
@@ -3121,6 +3347,10 @@ fun RiskLabScreen(
         onScreenChanged(riskLabScreen != "HOME")
     }
 
+    BackHandler(enabled = riskLabScreen != "HOME") {
+        riskLabScreen = "HOME"
+    }
+
     AnimatedContent(
         targetState = riskLabScreen,
         transitionSpec = {
@@ -3155,6 +3385,16 @@ fun RiskLabScreen(
             }
             "PROFIT_BY_PIPS" -> {
                 ProfitByPipsScreen(
+                    onBack = { riskLabScreen = "HOME" }
+                )
+            }
+            "STANDARD_CALC" -> {
+                StandardCalculatorScreen(
+                    onBack = { riskLabScreen = "HOME" }
+                )
+            }
+            "CURRENCY_CALC" -> {
+                CurrencyCalculatorScreen(
                     onBack = { riskLabScreen = "HOME" }
                 )
             }
@@ -3217,9 +3457,7 @@ fun RiskLabHomeScreen(
                             .size(40.dp)
                             .background(Color.White.copy(alpha = 0.05f), shape = CircleShape)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = "Menu Panel",
+                        InfoIconRedesign(
                             tint = ElectricBlue,
                             modifier = Modifier.size(24.dp)
                         )
@@ -3271,6 +3509,22 @@ fun RiskLabHomeScreen(
                 onClick = { onNavigateToCalculator("PROFIT") }
             )
 
+            CalculatorMenuCard(
+                title = "4. Standard Calculator",
+                description = "A clean standard mathematical calculator with percentages for quick general math.",
+                emoji = "🧮",
+                highlightColor = ElectricBlue,
+                onClick = { onNavigateToCalculator("STANDARD_CALC") }
+            )
+
+            CalculatorMenuCard(
+                title = "5. Currency Converter",
+                description = "Real-time global currency rates with interactive vice-versa conversion features.",
+                emoji = "💵",
+                highlightColor = GoldGold,
+                onClick = { onNavigateToCalculator("CURRENCY_CALC") }
+            )
+
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(
@@ -3280,7 +3534,7 @@ fun RiskLabHomeScreen(
             ) {
                 Text(
                     text = buildAnnotatedString {
-                        append("Build with ❤️by ")
+                        append("Designed & Built with ❤️ by ")
                         withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = TextPrimary)) {
                             append("SRIJAN")
                         }
@@ -3674,6 +3928,7 @@ fun PositionSizeCalculatorScreen(
 ) {
     val forexPairs = remember {
         listOf(
+            // USD Pairs & Major Spot (At the top)
             ForexPair("EUR/USD", "EUR/USD - Euro / US Dollar", 0.0001, 10.0),
             ForexPair("GBP/USD", "GBP/USD - Great Britain Pound / US Dollar", 0.0001, 10.0),
             ForexPair("USD/JPY", "USD/JPY - US Dollar / Japanese Yen", 0.01, 10.0),
@@ -3681,6 +3936,14 @@ fun PositionSizeCalculatorScreen(
             ForexPair("USD/CAD", "USD/CAD - US Dollar / Canadian Dollar", 0.0001, 10.0),
             ForexPair("USD/CHF", "USD/CHF - US Dollar / Swiss Franc", 0.0001, 10.0),
             ForexPair("NZD/USD", "NZD/USD - New Zealand Dollar / US Dollar", 0.0001, 10.0),
+            ForexPair("USD/SGD", "USD/SGD - US Dollar / Singapore Dollar", 0.0001, 7.40),
+            ForexPair("XAU/USD", "XAU/USD - Gold Spot / US Dollar", 0.1, 10.0),
+            ForexPair("USD/HKD", "USD/HKD - US Dollar / Hong Kong Dollar", 0.0001, 1.28),
+            ForexPair("USD/MXN", "USD/MXN - US Dollar / Mexican Peso", 0.0001, 0.59),
+            ForexPair("USD/TRY", "USD/TRY - US Dollar / Turkish Lira", 0.0001, 0.31),
+            ForexPair("USD/ZAR", "USD/ZAR - US Dollar / South African Rand", 0.0001, 0.54),
+
+            // Other Cross Pairs (After USD pairs)
             ForexPair("EUR/GBP", "EUR/GBP - Euro / Great Britain Pound", 0.0001, 12.70),
             ForexPair("EUR/JPY", "EUR/JPY - Euro / Japanese Yen", 0.01, 6.45),
             ForexPair("GBP/JPY", "GBP/JPY - Great Britain Pound / Japanese Yen", 0.01, 6.45),
@@ -3688,7 +3951,6 @@ fun PositionSizeCalculatorScreen(
             ForexPair("EUR/CHF", "EUR/CHF - Euro / Swiss Franc", 0.0001, 11.10),
             ForexPair("GBP/AUD", "GBP/AUD - Great Britain Pound / Australian Dollar", 0.0001, 6.70),
             ForexPair("EUR/AUD", "EUR/AUD - Euro / Australian Dollar", 0.0001, 6.70),
-            ForexPair("USD/SGD", "USD/SGD - US Dollar / Singapore Dollar", 0.0001, 7.40),
             ForexPair("GBP/CAD", "GBP/CAD - Great Britain Pound / Canadian Dollar", 0.0001, 7.30),
             ForexPair("EUR/CAD", "EUR/CAD - Euro / Canadian Dollar", 0.0001, 7.30),
             ForexPair("AUD/NZD", "AUD/NZD - Australian Dollar / New Zealand Dollar", 0.0001, 6.10),
@@ -3697,7 +3959,12 @@ fun PositionSizeCalculatorScreen(
             ForexPair("CHF/JPY", "CHF/JPY - Swiss Franc / Japanese Yen", 0.01, 6.45),
             ForexPair("NZD/JPY", "NZD/JPY - New Zealand Dollar / Japanese Yen", 0.01, 6.45),
             ForexPair("GBP/CHF", "GBP/CHF - Great Britain Pound / Swiss Franc", 0.0001, 11.10),
-            ForexPair("XAU/USD", "GOLD (XAU/USD) - Gold Spot", 0.1, 10.0)
+            ForexPair("EUR/NZD", "EUR/NZD - Euro / New Zealand Dollar", 0.0001, 6.10),
+            ForexPair("GBP/NZD", "GBP/NZD - Great Britain Pound / New Zealand Dollar", 0.0001, 6.10),
+            ForexPair("NZD/CAD", "NZD/CAD - New Zealand Dollar / Canadian Dollar", 0.0001, 7.30),
+            ForexPair("NZD/CHF", "NZD/CHF - New Zealand Dollar / Swiss Franc", 0.0001, 11.10),
+            ForexPair("AUD/CHF", "AUD/CHF - Australian Dollar / Swiss Franc", 0.0001, 11.10),
+            ForexPair("CAD/CHF", "CAD/CHF - Canadian Dollar / Swiss Franc", 0.0001, 11.10)
         )
     }
 
@@ -3715,6 +3982,19 @@ fun PositionSizeCalculatorScreen(
     var calculatedResult by remember { mutableStateOf<PositionSizeResult?>(null) }
     var validationError by remember { mutableStateOf("") }
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(selectedPair) {
+        calculatedResult = null
+        validationError = ""
+        entryInput = ""
+        slPriceInput = ""
+        slPipsInput = ""
+    }
+
+    LaunchedEffect(balanceInput, riskInput, slPipsInput, entryInput, slPriceInput, isSlInPips, isRiskPercent) {
+        calculatedResult = null
+        validationError = ""
+    }
 
     Scaffold(
         modifier = Modifier
@@ -3775,17 +4055,6 @@ fun PositionSizeCalculatorScreen(
                 selectedPair = selectedPair,
                 onPairSelected = { pair ->
                     selectedPair = pair
-                    // Prepopulate sensible default entry price for comfort
-                    when (pair.symbol) {
-                        "EUR/USD" -> { entryInput = "1.0850"; slPriceInput = "1.0800"; slPipsInput = "50" }
-                        "GBP/USD" -> { entryInput = "1.2650"; slPriceInput = "1.2600"; slPipsInput = "50" }
-                        "USD/JPY" -> { entryInput = "156.50"; slPriceInput = "156.00"; slPipsInput = "50" }
-                        "AUD/USD" -> { entryInput = "0.6650"; slPriceInput = "0.6600"; slPipsInput = "50" }
-                        "USD/CAD" -> { entryInput = "1.3650"; slPriceInput = "1.3700"; slPipsInput = "50" }
-                        "USD/CHF" -> { entryInput = "0.9050"; slPriceInput = "0.9100"; slPipsInput = "50" }
-                        "NZD/USD" -> { entryInput = "0.6150"; slPriceInput = "0.6100"; slPipsInput = "50" }
-                        "XAU/USD" -> { entryInput = "2350.00"; slPriceInput = "2340.00"; slPipsInput = "100" }
-                    }
                 },
                 pairs = forexPairs
             )
@@ -3917,10 +4186,11 @@ fun PositionSizeCalculatorScreen(
                     )
                 }
                 Text(
-                    text = "* Entry price is used to accurately calculate pip conversions for JPY, CAD, CHF & cross pairs.",
+                    text = "⚠️ WARNING: Lot size directly impacts your risk exposure.\nAlways verify your calculated position size aligns with your strict risk management limits.",
                     fontSize = 10.sp,
-                    color = TextSecondary,
-                    modifier = Modifier.padding(horizontal = 4.dp)
+                    color = BearishRed,
+                    lineHeight = 14.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                 )
             } else {
                 Row(
@@ -4193,11 +4463,16 @@ fun ProfitCalculatorScreen(
 ) {
     var balanceInput by remember { mutableStateOf("") }
     var riskInput by remember { mutableStateOf("") }
-    var rrInput by remember { mutableStateOf("3") }
+    var rrInput by remember { mutableStateOf("") }
 
     var calculatedResult by remember { mutableStateOf<ProfitResult?>(null) }
     var validationError by remember { mutableStateOf("") }
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(balanceInput, riskInput, rrInput) {
+        calculatedResult = null
+        validationError = ""
+    }
 
     Scaffold(
         modifier = Modifier
@@ -4426,6 +4701,11 @@ fun ProfitByPipsScreen(
     var calculatedResult by remember { mutableStateOf<ProfitByPipsResult?>(null) }
     var validationError by remember { mutableStateOf("") }
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(lotsInput, pipsInput, selectedInstrumentType) {
+        calculatedResult = null
+        validationError = ""
+    }
 
     Scaffold(
         modifier = Modifier
@@ -4656,6 +4936,1439 @@ fun ProfitByPipsScreen(
             }
 
             Spacer(modifier = Modifier.height(120.dp))
+        }
+    }
+}
+
+@Composable
+fun StandardCalculatorScreen(
+    onBack: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("strixa_calc_prefs", Context.MODE_PRIVATE) }
+
+    fun saveHistory(items: List<Pair<String, String>>) {
+        val jsonArray = org.json.JSONArray()
+        items.take(50).forEach { (formula, result) ->
+            val obj = org.json.JSONObject()
+            obj.put("formula", formula)
+            obj.put("result", result)
+            jsonArray.put(obj)
+        }
+        prefs.edit().putString("calc_history", jsonArray.toString()).apply()
+    }
+
+    fun loadHistory(): List<Pair<String, String>> {
+        val raw = prefs.getString("calc_history", null) ?: return emptyList()
+        val list = mutableListOf<Pair<String, String>>()
+        try {
+            val jsonArray = org.json.JSONArray(raw)
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                list.add(Pair(obj.getString("formula"), obj.getString("result")))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return list
+    }
+
+    var historyList by remember { mutableStateOf(loadHistory()) }
+    var currentInputVal by remember { mutableStateOf(TextFieldValue("")) }
+    var showingResult by remember { mutableStateOf(false) }
+    var resultText by remember { mutableStateOf("") }
+    var upperText by remember { mutableStateOf("") }
+    var acClickCount by remember { mutableStateOf(0) }
+    var pendingHistoryItem by remember { mutableStateOf<Pair<String, String>?>(null) }
+
+    val historyListState = rememberLazyListState()
+
+    fun formatDouble(v: Double): String {
+        if (v.isNaN()) return "Error"
+        if (v.isInfinite()) return "Limit Error"
+        try {
+            var bd = java.math.BigDecimal(v)
+            // Round to 12 decimal places to clear up floating point artifacts
+            bd = bd.setScale(12, java.math.RoundingMode.HALF_UP)
+            val plain = bd.stripTrailingZeros().toPlainString()
+            return plain
+        } catch (e: Exception) {
+            val s = v.toString()
+            return if (s.endsWith(".0")) s.substring(0, s.length - 2) else s
+        }
+    }
+
+    fun tokenize(expr: String): List<String> {
+        val tokens = mutableListOf<String>()
+        var currentNum = StringBuilder()
+        val cleanExpr = expr.replace(" ", "")
+        for (i in cleanExpr.indices) {
+            val c = cleanExpr[i]
+            if (c.isDigit() || c == '.') {
+                currentNum.append(c)
+            } else if (c == '-' && (i == 0 || cleanExpr[i - 1] in listOf('+', '-', '×', '÷'))) {
+                currentNum.append(c)
+            } else if (c in listOf('+', '-', '×', '÷')) {
+                if (currentNum.isNotEmpty()) {
+                    tokens.add(currentNum.toString())
+                    currentNum = StringBuilder()
+                }
+                tokens.add(c.toString())
+            }
+        }
+        if (currentNum.isNotEmpty()) {
+            tokens.add(currentNum.toString())
+        }
+        return tokens
+    }
+
+    fun cleanTokens(tokens: List<String>): List<String> {
+        if (tokens.isEmpty()) return tokens
+        var list = tokens
+        while (list.isNotEmpty() && list.last() in listOf("+", "-", "×", "÷")) {
+            list = list.dropLast(1)
+        }
+        while (list.isNotEmpty() && list.first() in listOf("+", "×", "÷")) {
+            list = list.drop(1)
+        }
+        return list
+    }
+
+    fun evaluateTokens(tokens: List<String>): Double {
+        if (tokens.isEmpty()) return 0.0
+
+        val pass1 = mutableListOf<String>()
+        var i = 0
+        while (i < tokens.size) {
+            val token = tokens[i]
+            if (token == "×" || token == "÷") {
+                val op = token
+                val prevVal = pass1.removeAt(pass1.size - 1).toDoubleOrNull() ?: 0.0
+                val nextVal = if (i + 1 < tokens.size) tokens[i + 1].toDoubleOrNull() ?: 0.0 else 0.0
+                val res = if (op == "×") prevVal * nextVal else {
+                    if (nextVal == 0.0) 0.0 else prevVal / nextVal
+                }
+                pass1.add(res.toString())
+                i += 2
+            } else {
+                pass1.add(token)
+                i++
+            }
+        }
+
+        if (pass1.isEmpty()) return 0.0
+        var result = pass1[0].toDoubleOrNull() ?: 0.0
+        var j = 1
+        while (j < pass1.size) {
+            val op = pass1[j]
+            val nextVal = if (j + 1 < pass1.size) pass1[j + 1].toDoubleOrNull() ?: 0.0 else 0.0
+            if (op == "+") {
+                result += nextVal
+            } else if (op == "-") {
+                result -= nextVal
+            }
+            j += 2
+        }
+        return result
+    }
+
+    fun insertText(key: String) {
+        val text = currentInputVal.text
+        val sel = currentInputVal.selection
+        val start = sel.start.coerceIn(0, text.length)
+        val end = sel.end.coerceIn(0, text.length)
+        val newText = text.substring(0, start) + key + text.substring(end)
+        val newCursor = start + key.length
+        currentInputVal = TextFieldValue(newText, TextRange(newCursor))
+    }
+
+    fun deleteText() {
+        val text = currentInputVal.text
+        val sel = currentInputVal.selection
+        val start = sel.start.coerceIn(0, text.length)
+        val end = sel.end.coerceIn(0, text.length)
+        if (start != end) {
+            val newText = text.substring(0, start) + text.substring(end)
+            currentInputVal = TextFieldValue(newText, TextRange(start))
+        } else if (start > 0) {
+            val newText = text.substring(0, start - 1) + text.substring(start)
+            currentInputVal = TextFieldValue(newText, TextRange(start - 1))
+        }
+    }
+
+    fun applyPercentAtCursor(value: TextFieldValue): TextFieldValue {
+        val text = value.text
+        val cursor = value.selection.start
+        if (text.isEmpty() || cursor <= 0) return value
+
+        var start = cursor - 1
+        while (start >= 0 && (text[start].isDigit() || text[start] == '.')) {
+            start--
+        }
+        if (start >= 0 && text[start] == '-') {
+            if (start == 0 || text[start - 1] in listOf('+', '-', '×', '÷')) {
+                start--
+            }
+        }
+        val numStart = start + 1
+        val numEnd = cursor
+        if (numStart < numEnd) {
+            val numStr = text.substring(numStart, numEnd)
+            val numDouble = numStr.toDoubleOrNull()
+            if (numDouble != null) {
+                val percentStr = formatDouble(numDouble / 100.0)
+                val newText = text.substring(0, numStart) + percentStr + text.substring(numEnd)
+                val newCursor = numStart + percentStr.length
+                return TextFieldValue(newText, TextRange(newCursor))
+            }
+        }
+        return value
+    }
+
+    fun commitPendingHistory() {
+        val pending = pendingHistoryItem
+        if (pending != null) {
+            val updated = (listOf(pending) + historyList).take(50)
+            historyList = updated
+            saveHistory(updated)
+            pendingHistoryItem = null
+        }
+    }
+
+    fun handlePress(key: String) {
+        if (key != "AC" && key != "CLEAR_ALL") {
+            acClickCount = 0
+        }
+
+        // Auto-scroll history to bottom when typing or executing action
+        scope.launch {
+            if (historyList.isNotEmpty()) {
+                try {
+                    historyListState.animateScrollToItem(0)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+
+        if (showingResult) {
+            commitPendingHistory()
+            showingResult = false
+            val prevResult = resultText
+            resultText = ""
+            upperText = ""
+
+            when (key) {
+                in "0123456789" -> {
+                    currentInputVal = TextFieldValue(key, TextRange(key.length))
+                }
+                "." -> {
+                    currentInputVal = TextFieldValue("0.", TextRange(2))
+                }
+                in listOf("+", "-", "×", "÷") -> {
+                    currentInputVal = TextFieldValue(prevResult + key, TextRange((prevResult + key).length))
+                }
+                "%" -> {
+                    val resDouble = prevResult.toDoubleOrNull() ?: 0.0
+                    val percentVal = formatDouble(resDouble / 100.0)
+                    currentInputVal = TextFieldValue(percentVal, TextRange(percentVal.length))
+                }
+                "⌫" -> {
+                    currentInputVal = TextFieldValue("", TextRange.Zero)
+                }
+                "=" -> {
+                    showingResult = true
+                    resultText = prevResult
+                }
+                "AC" -> {
+                    currentInputVal = TextFieldValue("", TextRange.Zero)
+                    acClickCount = 1
+                }
+            }
+        } else {
+            when {
+                key == "CLEAR_ALL" -> {
+                    currentInputVal = TextFieldValue("", TextRange.Zero)
+                    resultText = ""
+                    upperText = ""
+                    showingResult = false
+                    acClickCount = 0
+                    pendingHistoryItem = null
+                }
+                key == "AC" -> {
+                    val hasActiveInput = currentInputVal.text.isNotEmpty() || showingResult
+                    if (hasActiveInput) {
+                        currentInputVal = TextFieldValue("", TextRange.Zero)
+                        resultText = ""
+                        upperText = ""
+                        showingResult = false
+                        pendingHistoryItem = null
+                        acClickCount = 1
+                    } else {
+                        acClickCount++
+                        if (acClickCount >= 2) {
+                            historyList = emptyList()
+                            saveHistory(emptyList())
+                            acClickCount = 0
+                        }
+                    }
+                }
+                key == "⌫" -> {
+                    deleteText()
+                }
+                key in "0123456789" -> {
+                    if (currentInputVal.text == "0") {
+                        currentInputVal = TextFieldValue(key, TextRange(key.length))
+                    } else {
+                        insertText(key)
+                    }
+                }
+                key == "." -> {
+                    val text = currentInputVal.text
+                    val cursor = currentInputVal.selection.start
+                    var start = cursor - 1
+                    while (start >= 0 && text[start].isDigit()) {
+                        start--
+                    }
+                    val hasDotInCurrentNumber = start >= 0 && text[start] == '.'
+                    if (!hasDotInCurrentNumber) {
+                        if (currentInputVal.text.isEmpty() || (cursor > 0 && currentInputVal.text[cursor - 1] in listOf('+', '-', '×', '÷'))) {
+                            insertText("0.")
+                        } else {
+                            insertText(".")
+                        }
+                    }
+                }
+                key == "%" -> {
+                    currentInputVal = applyPercentAtCursor(currentInputVal)
+                }
+                key in listOf("+", "-", "×", "÷") -> {
+                    val text = currentInputVal.text
+                    val cursor = currentInputVal.selection.start
+                    if (cursor > 0 && text[cursor - 1] in listOf('+', '-', '×', '÷')) {
+                        val newText = text.substring(0, cursor - 1) + key + text.substring(cursor)
+                        currentInputVal = TextFieldValue(newText, TextRange(cursor))
+                    } else {
+                        insertText(key)
+                    }
+                }
+                key == "=" -> {
+                    val exprStr = currentInputVal.text
+                    val tokens = cleanTokens(tokenize(exprStr))
+                    if (tokens.isNotEmpty()) {
+                        val resultVal = evaluateTokens(tokens)
+                        val resultStr = formatDouble(resultVal)
+                        val sanitizedExpr = tokens.joinToString(" ")
+                        upperText = sanitizedExpr
+                        resultText = resultStr
+                        showingResult = true
+                        pendingHistoryItem = Pair(sanitizedExpr, resultStr)
+                        currentInputVal = TextFieldValue("", TextRange.Zero)
+                    }
+                }
+            }
+        }
+    }
+
+    val isScrolledUp = historyListState.firstVisibleItemIndex > 0 || historyListState.firstVisibleItemScrollOffset > 30
+    val displayAlpha by animateFloatAsState(
+        targetValue = if (isScrolledUp) 0f else 1f,
+        animationSpec = tween(300),
+        label = "displayAlpha"
+    )
+
+    Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DeepSpaceDb),
+        containerColor = DeepSpaceDb,
+        topBar = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(CardSurfaceDb)
+                    .border(width = 1.dp, color = BorderDb)
+                    .statusBarsPadding()
+                    .padding(top = 12.dp, bottom = 12.dp, start = 16.dp, end = 16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .size(36.dp)
+                            .background(Color.White.copy(alpha = 0.05f), shape = CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = ElectricBlue,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Text(
+                        text = "STANDARD CALCULATOR",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.sp,
+                        color = ElectricBlue
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Display & Scrollable History Area
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(top = 12.dp, bottom = 12.dp),
+                verticalArrangement = Arrangement.Bottom
+            ) {
+                // Scrollable History list
+                LazyColumn(
+                    state = historyListState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    reverseLayout = true,
+                    verticalArrangement = Arrangement.Bottom
+                ) {
+                    if (historyList.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No Calculation History",
+                                    fontSize = 13.sp,
+                                    color = TextMuted,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    } else {
+                        itemsIndexed(historyList) { index, item ->
+                            val itemAlpha = (0.5f - (index * 0.05f)).coerceIn(0.15f, 0.5f)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp)
+                                    .alpha(itemAlpha),
+                                horizontalAlignment = Alignment.End
+                            ) {
+                                Text(
+                                    text = item.first,
+                                    fontSize = 13.sp,
+                                    color = TextSecondary,
+                                    maxLines = 1,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "= ${item.second}",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ElectricBlue,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Current Input / Operators Display Area (Vanish when history scrolled up)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer { alpha = displayAlpha }
+                        .padding(vertical = 8.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    // Show AC status message if we are primed to clear history
+                    if (acClickCount > 0 && currentInputVal.text.isEmpty() && !showingResult) {
+                        Text(
+                            text = "Press AC once more to clear history",
+                            fontSize = 11.sp,
+                            color = GoldGold.copy(alpha = 0.8f),
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
+                    }
+
+                    val displayResultFontSize = when {
+                        resultText.length > 25 -> 18.sp
+                        resultText.length > 20 -> 22.sp
+                        resultText.length > 15 -> 28.sp
+                        resultText.length > 10 -> 36.sp
+                        else -> 44.sp
+                    }
+
+                    val displayInputFontSize = when {
+                        currentInputVal.text.length > 25 -> 18.sp
+                        currentInputVal.text.length > 20 -> 22.sp
+                        currentInputVal.text.length > 15 -> 28.sp
+                        currentInputVal.text.length > 10 -> 36.sp
+                        else -> 44.sp
+                    }
+
+                    val displayUpperFontSize = when {
+                        upperText.length > 30 -> 12.sp
+                        upperText.length > 20 -> 14.sp
+                        else -> 18.sp
+                    }
+
+                    if (showingResult) {
+                        Text(
+                            text = upperText,
+                            fontSize = displayUpperFontSize,
+                            fontWeight = FontWeight.Medium,
+                            color = TextSecondary,
+                            maxLines = 1,
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
+                        Text(
+                            text = resultText,
+                            fontSize = displayResultFontSize,
+                            fontWeight = FontWeight.Black,
+                            color = ElectricBlue,
+                            maxLines = 1,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    } else {
+                        CompositionLocalProvider(
+                            androidx.compose.foundation.text.selection.LocalTextSelectionColors provides 
+                            androidx.compose.foundation.text.selection.TextSelectionColors(
+                                handleColor = ElectricBlue,
+                                backgroundColor = ElectricBlue.copy(alpha = 0.3f)
+                            )
+                        ) {
+                            BasicTextField(
+                                value = currentInputVal,
+                                onValueChange = { currentInputVal = it },
+                                readOnly = true, // Prevent soft keyboard, handle key clicks manually
+                                textStyle = TextStyle(
+                                    fontSize = displayInputFontSize,
+                                    fontWeight = FontWeight.Black,
+                                    color = TextPrimary,
+                                    textAlign = TextAlign.End
+                                ),
+                                cursorBrush = SolidColor(ElectricBlue),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp),
+                                decorationBox = { innerTextField ->
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.CenterEnd
+                                    ) {
+                                        if (currentInputVal.text.isEmpty()) {
+                                            Text(
+                                                text = "0",
+                                                fontSize = displayInputFontSize,
+                                                fontWeight = FontWeight.Black,
+                                                color = TextSecondary.copy(alpha = 0.5f)
+                                            )
+                                        }
+                                        innerTextField()
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Keyboard Area
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                val buttonRows = listOf(
+                    listOf("AC", "⌫", "%", "÷"),
+                    listOf("7", "8", "9", "×"),
+                    listOf("4", "5", "6", "-"),
+                    listOf("1", "2", "3", "+"),
+                    listOf("0", ".", "=")
+                )
+
+                buttonRows.forEach { rowKeys ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        rowKeys.forEach { key ->
+                            val isOperator = key in listOf("+", "-", "×", "÷")
+                            val isAction = key in listOf("AC", "⌫", "=", "%")
+                            val isZero = key == "0"
+                            val isEquals = key == "="
+                            val isBackspace = key == "⌫"
+                            val isAc = key == "AC"
+
+                            val bgColor = when {
+                                isEquals -> BullishGreen
+                                isAc -> BearishRed.copy(alpha = 0.15f)
+                                isAction -> CardSurfaceDb.copy(alpha = 0.8f)
+                                isOperator -> ElectricBlue.copy(alpha = 0.15f)
+                                else -> CardSurfaceDb
+                            }
+
+                            val textColor = when {
+                                isEquals -> Color.White
+                                isAc -> BearishRed
+                                isOperator -> ElectricBlue
+                                isAction -> GoldGold
+                                else -> TextPrimary
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(if (isZero && rowKeys.size == 3) 2f else 1f)
+                                    .height(68.dp)
+                                    .background(bgColor, shape = RoundedCornerShape(16.dp))
+                                    .border(1.dp, BorderDb.copy(alpha = 0.5f), shape = RoundedCornerShape(16.dp))
+                                    .let { modifier ->
+                                        if (isBackspace) {
+                                            modifier.bounceClickWithLong(
+                                                onClick = { handlePress("⌫") },
+                                                onLongClick = { handlePress("CLEAR_ALL") }
+                                            )
+                                        } else {
+                                            modifier.bounceClick { handlePress(key) }
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = key,
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = textColor
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CurrencyCalculatorScreen(
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("exchange_rates_prefs", Context.MODE_PRIVATE) }
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val scope = rememberCoroutineScope()
+
+    var fromCurrency by remember { mutableStateOf("USD") }
+    var toCurrency by remember { mutableStateOf("INR") }
+    
+    // Supported currencies list
+    val currencies = remember {
+        listOf(
+            "USD", "EUR", "GBP", "JPY", "AUD", "CAD", "CHF", "INR", "PKR", "SGD",
+            "AED", "SAR", "CNY", "HKD", "NZD", "BRL", "RUB", "ZAR", "MXN", "TRY", "BDT"
+        )
+    }
+
+    val currencyNames = remember {
+        mapOf(
+            "USD" to ("US Dollar" to "💵"),
+            "EUR" to ("Euro" to "💶"),
+            "GBP" to ("British Pound" to "💷"),
+            "JPY" to ("Japanese Yen" to "💴"),
+            "AUD" to ("Australian Dollar" to "🇦🇺"),
+            "CAD" to ("Canadian Dollar" to "🇨🇦"),
+            "CHF" to ("Swiss Franc" to "🇨🇭"),
+            "INR" to ("Indian Rupee" to "🇮🇳"),
+            "PKR" to ("Pakistani Rupee" to "🇵🇰"),
+            "SGD" to ("Singapore Dollar" to "🇸🇬"),
+            "AED" to ("UAE Dirham" to "🇦🇪"),
+            "SAR" to ("Saudi Riyal" to "🇸🇦"),
+            "CNY" to ("Chinese Yuan" to "🇨🇳"),
+            "HKD" to ("Hong Kong Dollar" to "🇭🇰"),
+            "NZD" to ("New Zealand Dollar" to "🇳🇿"),
+            "BRL" to ("Brazilian Real" to "🇧🇷"),
+            "RUB" to ("Russian Ruble" to "🇷🇺"),
+            "ZAR" to ("South African Rand" to "🇿🇦"),
+            "MXN" to ("Mexican Peso" to "🇲🇽"),
+            "TRY" to ("Turkish Lira" to "🇹🇷"),
+            "BDT" to ("Bangladeshi Taka" to "🇧🇩")
+        )
+    }
+
+    // Load initially from SharedPreferences if saved, otherwise getDefaultRates()
+    var exchangeRates by remember {
+        mutableStateOf(
+            run {
+                val savedRates = mutableMapOf<String, Double>()
+                currencies.forEach { code ->
+                    if (sharedPrefs.contains("rate_$code")) {
+                        savedRates[code] = sharedPrefs.getFloat("rate_$code", 1f).toDouble()
+                    }
+                }
+                if (savedRates.isNotEmpty()) savedRates else getDefaultRates()
+            }
+        )
+    }
+
+    var isLoading by remember { mutableStateOf(false) }
+    var syncMessage by remember { mutableStateOf("Syncing live rates...") }
+    var isError by remember { mutableStateOf(false) }
+    val pullToRefreshState = rememberPullToRefreshState()
+    var showFromDialog by remember { mutableStateOf(false) }
+    var showToDialog by remember { mutableStateOf(false) }
+
+    // Start currency values at "0"
+    var amountFrom by remember { mutableStateOf("0") }
+    var amountTo by remember { mutableStateOf("0") }
+    var lastEditedBy by remember { mutableStateOf("FROM") } // "FROM" or "TO"
+
+    var rotationAngle by remember { mutableStateOf(0f) }
+    val animatedRotation by animateFloatAsState(
+        targetValue = rotationAngle,
+        animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
+        label = "swap_rotation"
+    )
+
+    fun convertCurrency(amountStr: String, fromCode: String, toCode: String): String {
+        if (amountStr.isEmpty() || amountStr == "0") return "0"
+        val amount = amountStr.toDoubleOrNull() ?: return "0"
+        val rateFrom = exchangeRates[fromCode] ?: 1.0
+        val rateTo = exchangeRates[toCode] ?: 1.0
+        val converted = (amount / rateFrom) * rateTo
+        
+        try {
+            var bd = java.math.BigDecimal(converted)
+            bd = bd.setScale(4, java.math.RoundingMode.HALF_UP)
+            return bd.stripTrailingZeros().toPlainString()
+        } catch (e: Exception) {
+            return String.format(Locale.US, "%.4f", converted).trimEnd('0').trimEnd('.')
+        }
+    }
+
+    // Reusable, thread-safe rate synchronization helper
+    fun refreshRates() {
+        if (isLoading) return
+        scope.launch {
+            isLoading = true
+            isError = false
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    val url = URL("https://open.er-api.com/v6/latest/USD")
+                    val connection = url.openConnection() as HttpURLConnection
+                    connection.requestMethod = "GET"
+                    connection.connectTimeout = 5000
+                    connection.readTimeout = 5000
+                    if (connection.responseCode == 200) {
+                        val jsonText = connection.inputStream.bufferedReader().use { it.readText() }
+                        val jsonObject = JSONObject(jsonText)
+                        if (jsonObject.getString("result") == "success") {
+                            val ratesObj = jsonObject.getJSONObject("rates")
+                            val newRates = mutableMapOf<String, Double>()
+                            currencies.forEach { code ->
+                                if (ratesObj.has(code)) {
+                                    newRates[code] = ratesObj.getDouble(code)
+                                }
+                            }
+                            
+                            // Commit live values to persistent local SharedPreferences
+                            val editor = sharedPrefs.edit()
+                            newRates.forEach { (code, rate) ->
+                                editor.putFloat("rate_$code", rate.toFloat())
+                            }
+                            editor.apply()
+
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                exchangeRates = newRates
+                                isLoading = false
+                                isError = false
+                                syncMessage = "Live Exchange Rates Active"
+                                if (lastEditedBy == "FROM") {
+                                    amountTo = convertCurrency(amountFrom, fromCurrency, toCurrency)
+                                } else {
+                                    amountFrom = convertCurrency(amountTo, toCurrency, fromCurrency)
+                                }
+                            }
+                        } else {
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                isLoading = false
+                                isError = true
+                                syncMessage = "Offline [Stored Exchange Rates]"
+                            }
+                        }
+                    } else {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            isLoading = false
+                            isError = true
+                            syncMessage = "Offline [Stored Exchange Rates]"
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        isLoading = false
+                        isError = true
+                        syncMessage = "Offline [Stored Exchange Rates]"
+                    }
+                }
+            }
+        }
+    }
+
+    // Trigger initial rate refresh on screen entry
+    LaunchedEffect(Unit) {
+        refreshRates()
+    }
+
+    Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DeepSpaceDb),
+        containerColor = DeepSpaceDb,
+        topBar = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(CardSurfaceDb)
+                    .border(width = 1.dp, color = BorderDb)
+                    .statusBarsPadding()
+                    .padding(top = 12.dp, bottom = 12.dp, start = 16.dp, end = 16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .size(36.dp)
+                            .background(Color.White.copy(alpha = 0.05f), shape = CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = ElectricBlue,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Text(
+                        text = "CURRENCY CALCULATOR",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.sp,
+                        color = ElectricBlue
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+        // PullToRefreshBox supports force scroll down gesture to refresh rates
+        PullToRefreshBox(
+            isRefreshing = isLoading,
+            onRefresh = { refreshRates() },
+            state = pullToRefreshState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            val scaleY = 1f + (pullToRefreshState.distanceFraction * 0.12f).coerceAtMost(0.12f)
+            val translateY = pullToRefreshState.distanceFraction * 120f
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        this.scaleY = scaleY
+                        this.translationY = translateY
+                        this.transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
+                    }
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState())
+                    .imePadding(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Real-time status badge with Refresh Action on Right Side
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White.copy(alpha = 0.02f), shape = RoundedCornerShape(12.dp))
+                        .border(1.dp, BorderDb, shape = RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                color = ElectricBlue,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        } else {
+                            // Active Dot: green if online, red if offline
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(
+                                        color = if (isError) BearishRed else BullishGreen,
+                                        shape = CircleShape
+                                    )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        
+                        Text(
+                            text = if (isError) "Offline [Stored Exchange Rates]" else syncMessage,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isError) BearishRed else if (isLoading) TextSecondary else BullishGreen
+                        )
+                    }
+
+                    // Manual refresh button
+                    IconButton(
+                        onClick = { refreshRates() },
+                        modifier = Modifier.size(28.dp),
+                        enabled = !isLoading
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh",
+                            tint = ElectricBlue,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                // Real-time Automatic Converter Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = CardSurfaceDb),
+                    border = BorderStroke(1.dp, BorderDb),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // UPPER CURRENCY ROW
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.Black.copy(alpha = 0.2f), shape = RoundedCornerShape(12.dp))
+                                .border(1.dp, BorderDb, shape = RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // LEFT SIDE: Currency Dropdown Selector
+                            Row(
+                                modifier = Modifier
+                                    .weight(0.42f)
+                                    .clickable { showFromDialog = true },
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                val details = currencyNames[fromCurrency]
+                                Text(
+                                    text = details?.second ?: "💵",
+                                    fontSize = 24.sp
+                                )
+                                Column {
+                                    Text(
+                                        text = fromCurrency,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+                                    Text(
+                                        text = details?.first?.take(12) ?: "",
+                                        fontSize = 10.sp,
+                                        color = TextSecondary,
+                                        maxLines = 1
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = "Dropdown",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            // Vertical Separator
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height(38.dp)
+                                    .background(BorderDb)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            // RIGHT SIDE: Input Option (Amount field)
+                            BasicTextField(
+                                value = amountFrom,
+                                onValueChange = { inputVal ->
+                                    var clean = inputVal
+                                    if (clean.length > 1 && clean.startsWith("0") && !clean.startsWith("0.")) {
+                                        clean = clean.substring(1)
+                                    }
+                                    if (clean.isEmpty()) {
+                                        clean = "0"
+                                    }
+                                    amountFrom = clean
+                                    lastEditedBy = "FROM"
+                                    amountTo = convertCurrency(clean, fromCurrency, toCurrency)
+                                },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = {
+                                        keyboardController?.hide()
+                                        focusManager.clearFocus()
+                                    }
+                                ),
+                                textStyle = TextStyle(
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (lastEditedBy == "FROM") Color.White else BullishGreen,
+                                    textAlign = TextAlign.End
+                                ),
+                                cursorBrush = SolidColor(ElectricBlue),
+                                modifier = Modifier.weight(0.58f),
+                                decorationBox = { innerTextField ->
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.CenterEnd
+                                    ) {
+                                        if (amountFrom.isEmpty()) {
+                                            Text(
+                                                text = "0",
+                                                fontSize = 22.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = TextSecondary.copy(alpha = 0.5f),
+                                                textAlign = TextAlign.End
+                                            )
+                                        }
+                                        innerTextField()
+                                    }
+                                }
+                            )
+                        }
+
+                        // SWAP / VICE VERSA BUTTON
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .graphicsLayer { rotationZ = animatedRotation }
+                                    .background(ElectricBlue.copy(alpha = 0.15f), shape = CircleShape)
+                                    .border(1.dp, ElectricBlue.copy(alpha = 0.4f), shape = CircleShape)
+                                    .clickable {
+                                        rotationAngle += 180f
+                                        val tempCurr = fromCurrency
+                                        fromCurrency = toCurrency
+                                        toCurrency = tempCurr
+
+                                        // Keep amountFrom unchanged, and recalculate the bottom target amountTo
+                                        amountTo = convertCurrency(amountFrom, fromCurrency, toCurrency)
+                                        lastEditedBy = "FROM"
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowUpward,
+                                        contentDescription = "Up",
+                                        tint = ElectricBlue,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDownward,
+                                        contentDescription = "Down",
+                                        tint = ElectricBlue,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // LOWER CURRENCY ROW
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.Black.copy(alpha = 0.2f), shape = RoundedCornerShape(12.dp))
+                                .border(1.dp, BorderDb, shape = RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // LEFT SIDE: Currency Dropdown Selector
+                            Row(
+                                modifier = Modifier
+                                    .weight(0.42f)
+                                    .clickable { showToDialog = true },
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                val details = currencyNames[toCurrency]
+                                Text(
+                                    text = details?.second ?: "💵",
+                                    fontSize = 24.sp
+                                )
+                                Column {
+                                    Text(
+                                        text = toCurrency,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+                                    Text(
+                                        text = details?.first?.take(12) ?: "",
+                                        fontSize = 10.sp,
+                                        color = TextSecondary,
+                                        maxLines = 1
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = "Dropdown",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            // Vertical Separator
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height(38.dp)
+                                    .background(BorderDb)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            // RIGHT SIDE: Input Option (Amount field)
+                            BasicTextField(
+                                value = amountTo,
+                                onValueChange = { inputVal ->
+                                    var clean = inputVal
+                                    if (clean.length > 1 && clean.startsWith("0") && !clean.startsWith("0.")) {
+                                        clean = clean.substring(1)
+                                    }
+                                    if (clean.isEmpty()) {
+                                        clean = "0"
+                                    }
+                                    amountTo = clean
+                                    lastEditedBy = "TO"
+                                    amountFrom = convertCurrency(clean, toCurrency, fromCurrency)
+                                },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = {
+                                        keyboardController?.hide()
+                                        focusManager.clearFocus()
+                                    }
+                                ),
+                                textStyle = TextStyle(
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (lastEditedBy == "TO") Color.White else BullishGreen,
+                                    textAlign = TextAlign.End
+                                ),
+                                cursorBrush = SolidColor(ElectricBlue),
+                                modifier = Modifier.weight(0.58f),
+                                decorationBox = { innerTextField ->
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.CenterEnd
+                                    ) {
+                                        if (amountTo.isEmpty()) {
+                                            Text(
+                                                text = "0",
+                                                fontSize = 22.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = TextSecondary.copy(alpha = 0.5f),
+                                                textAlign = TextAlign.End
+                                            )
+                                        }
+                                        innerTextField()
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Real-time Exchange Rate Info Card
+                val fromRate = exchangeRates[fromCurrency] ?: 1.0
+                val toRate = exchangeRates[toCurrency] ?: 1.0
+                val oneFromToTo = toRate / fromRate
+                val oneToToFrom = fromRate / toRate
+                
+                // Compare relative base rates (a smaller USD rate value means stronger purchasing power)
+                val isFromStronger = fromRate < toRate
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(CardSurfaceDb, shape = RoundedCornerShape(16.dp))
+                        .border(1.dp, BorderDb, shape = RoundedCornerShape(16.dp))
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "EXCHANGE RATE SUMMARY",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ElectricBlue,
+                        letterSpacing = 1.sp
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "1 $fromCurrency =",
+                            fontSize = 13.sp,
+                            color = TextSecondary
+                        )
+                        // If fromCurrency is stronger, then toCurrency rate conversion (destination) is weaker -> show in red (BearishRed), else green (BullishGreen)
+                        Text(
+                            text = String.format(Locale.US, "%.5f %s", oneFromToTo, toCurrency),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (fromRate == toRate) Color.White else if (isFromStronger) BearishRed else BullishGreen
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "1 $toCurrency =",
+                            fontSize = 13.sp,
+                            color = TextSecondary
+                        )
+                        // If fromCurrency is stronger, then fromCurrency rate conversion (destination) is stronger -> show in green (BullishGreen), else red (BearishRed)
+                        Text(
+                            text = String.format(Locale.US, "%.5f %s", oneToToFrom, fromCurrency),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (fromRate == toRate) Color.White else if (isFromStronger) BullishGreen else BearishRed
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(100.dp))
+            }
+        }
+    }
+
+    // From Selector Dialog
+    if (showFromDialog) {
+        CurrencySelectDialog(
+            title = "Convert From",
+            currencies = currencies,
+            currencyNames = currencyNames,
+            onDismiss = { showFromDialog = false },
+            onSelect = { 
+                fromCurrency = it
+                if (lastEditedBy == "FROM") {
+                    amountTo = convertCurrency(amountFrom, it, toCurrency)
+                } else {
+                    amountFrom = convertCurrency(amountTo, toCurrency, it)
+                }
+            }
+        )
+    }
+
+    // To Selector Dialog
+    if (showToDialog) {
+        CurrencySelectDialog(
+            title = "Convert To",
+            currencies = currencies,
+            currencyNames = currencyNames,
+            onDismiss = { showToDialog = false },
+            onSelect = { 
+                toCurrency = it
+                if (lastEditedBy == "FROM") {
+                    amountTo = convertCurrency(amountFrom, fromCurrency, it)
+                } else {
+                    amountFrom = convertCurrency(amountTo, it, fromCurrency)
+                }
+            }
+        )
+    }
+}
+
+fun getDefaultRates(): Map<String, Double> {
+    return mapOf(
+        "USD" to 1.0,
+        "EUR" to 0.92,
+        "GBP" to 0.79,
+        "JPY" to 157.0,
+        "AUD" to 1.50,
+        "CAD" to 1.37,
+        "CHF" to 0.89,
+        "INR" to 83.4,
+        "PKR" to 278.0,
+        "SGD" to 1.35,
+        "AED" to 3.67,
+        "SAR" to 3.75,
+        "CNY" to 7.25,
+        "HKD" to 7.81,
+        "NZD" to 1.63,
+        "BRL" to 5.40,
+        "RUB" to 89.0,
+        "ZAR" to 18.2,
+        "MXN" to 18.0,
+        "TRY" to 32.5,
+        "BDT" to 117.0
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CurrencySelectDialog(
+    title: String,
+    currencies: List<String>,
+    currencyNames: Map<String, Pair<String, String>>,
+    onDismiss: () -> Unit,
+    onSelect: (String) -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    val filteredCurrencies = currencies.filter { code ->
+        code.contains(searchQuery, ignoreCase = true) ||
+        (currencyNames[code]?.first?.contains(searchQuery, ignoreCase = true) ?: false)
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            colors = CardDefaults.cardColors(containerColor = CardSurfaceDb),
+            border = BorderStroke(1.dp, BorderDb),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ElectricBlue,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                // Search field
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search currency...", color = TextMuted) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = ElectricBlue,
+                        unfocusedBorderColor = BorderDb,
+                        cursorColor = ElectricBlue
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 300.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(filteredCurrencies) { code ->
+                        val nameAndEmoji = currencyNames[code]
+                        val name = nameAndEmoji?.first ?: ""
+                        val emoji = nameAndEmoji?.second ?: ""
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.White.copy(alpha = 0.02f), shape = RoundedCornerShape(8.dp))
+                                .clickable {
+                                    onSelect(code)
+                                    onDismiss()
+                                }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = emoji,
+                                fontSize = 20.sp,
+                                modifier = Modifier.padding(end = 12.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = code,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                                Text(
+                                    text = name,
+                                    fontSize = 12.sp,
+                                    color = TextSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">STRIXA</string>
     <string name="welcome_title">STRIXA Tracker</string>
-    <string name="built_by_srijan">built with ❤️ by srijan</string>
+    <string name="built_by_srijan">Designed &amp; Built with ❤️ by SRIJAN</string>
     <string name="add_setup">Log Confluence Trade</string>
     <string name="htf_trend">Higher Time Frame (Trend Bias)</string>
     <string name="ltf_trend">Lower Time Frame (Entry Alignment)</string>
